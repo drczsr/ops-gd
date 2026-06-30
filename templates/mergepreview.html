@@ -1,0 +1,194 @@
+{{ template "head" . }}
+<style>
+  .mp-wrap { max-width: none; width: 100%; }
+  .mp-head h4 { font-weight: 700; font-size: 1.5rem; color: #101828; margin: 0; }
+  .mp-head .sub { color: #667085; font-size: .9rem; margin-top: .3rem; }
+  .mp-card { background: #fff; border: 1px solid #e7eaef; border-radius: 14px; padding: 1.2rem 1.3rem; margin-top: 1rem; }
+  .mp-card h6 { font-weight: 650; color: #101828; }
+  .mp-fixed { color: #98a2b3; font-size: .8rem; }
+  .mp-logs { background: #0b1220; color: #cbd5e1; border-radius: 10px; padding: .9rem 1rem;
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .82rem; white-space: pre-wrap;
+    max-height: 300px; overflow-y: auto; }
+  .mp-empty { color: #94a3b8; }
+  table.mp-tbl td, table.mp-tbl th { padding: .35rem .5rem; font-size: .88rem; vertical-align: middle; }
+  .mp-justadded { border-color: #abefc6; background: #f6fef9; }
+  .mp-justadded h6 { color: #067647; }
+  .mp-justadded .mp-tbl tbody td { background: #edfcf2; }
+
+  /* 新增预告行 —— 美化 */
+  .mp-card .card-sub { color: #98a2b3; font-size: .82rem; margin: -.1rem 0 .9rem; }
+  .mp-fixed-pills { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .mp-fixed-pills .pill { background: #f2f4f7; color: #475467; border-radius: 999px;
+    padding: .2rem .7rem; font-size: .75rem; line-height: 1.4; }
+  .mp-fixed-pills .pill b { color: #101828; font-weight: 600; }
+  #mp-add { border-collapse: separate; border-spacing: 0; margin-bottom: 0; }
+  #mp-add thead th { font-size: .75rem; font-weight: 600; color: #667085; border: 0;
+    padding: 0 .4rem .45rem; vertical-align: bottom; line-height: 1.25; white-space: nowrap; }
+  #mp-add thead th .req { color: #f04438; margin-left: 2px; }
+  #mp-add tbody td { border: 0; padding: .25rem .3rem; vertical-align: middle; }
+  #mp-add .form-control { border-radius: 9px; border: 1px solid #e4e7ec; background: #fcfcfd;
+    font-size: .9rem; box-shadow: none; transition: border-color .15s, box-shadow .15s; }
+  #mp-add .form-control::placeholder { color: #cbd2dc; }
+  #mp-add .form-control:focus { border-color: #84caff; background: #fff;
+    box-shadow: 0 0 0 3px rgba(21, 112, 239, .12); }
+  #mp-add .num { text-align: center; }
+  .mp-del { width: 32px; height: 32px; border: 0; border-radius: 8px; background: transparent;
+    color: #d92d20; font-size: .8rem; display: inline-flex; align-items: center; justify-content: center; }
+  .mp-del:hover { background: #fee4e2; }
+  .mp-actions { display: flex; gap: .5rem; align-items: center; margin-top: .9rem;
+    padding-top: .9rem; border-top: 1px dashed #eaecf0; }
+  .mp-addline { border: 1px dashed #d0d5dd; background: #fff; color: #475467; border-radius: 9px;
+    font-size: .85rem; padding: .35rem .8rem; }
+  .mp-addline:hover { border-color: #98a2b3; background: #f9fafb; }
+</style>
+<div class="mp-wrap">
+  <div class="mp-head">
+    <h4>合服预告</h4>
+    <div class="sub">新增追加预告行 → 提交并更新(生成 MergeServerFunction.txt → 全服下发,走工单审批)</div>
+    {{ if .IsAdmin }}
+    <div style="display:flex;gap:.4rem;align-items:center;margin-top:.5rem;flex-wrap:wrap">
+      <form method="post" action="/mergepreview/import" enctype="multipart/form-data"
+            style="display:inline-flex;align-items:center"
+            data-confirm="覆盖导入会清空并重灌整个合服预告库,确认导入?" data-danger="1">
+        <input id="mpImportFile" type="file" name="file" accept=".txt" required
+               style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);border:0">
+        <label class="btn btn-sm btn-outline-danger mb-0" for="mpImportFile">导入预告</label>
+      </form>
+      <a class="btn btn-sm btn-outline-secondary" href="/mergepreview/export">导出预告</a>
+    </div>
+    {{ end }}
+  </div>
+
+  {{ if .AddErr }}<div class="alert alert-danger mt-3 mb-0">{{ .AddErr }}</div>{{ end }}
+  {{ if .AddMsg }}<div class="alert alert-success mt-3 mb-0">{{ .AddMsg }}</div>{{ end }}
+  {{ if .ImportMsg }}<div class="alert alert-success mt-3 mb-0">✅ {{ .ImportMsg }}</div>{{ end }}
+  {{ if .SubmitMsg }}<div class="alert alert-success mt-3 mb-0">{{ .SubmitMsg }}</div>{{ end }}
+  {{ if .GenErr }}<div class="alert alert-danger mt-3 mb-0">{{ .GenErr }}</div>{{ end }}
+
+  <!-- 新增 -->
+  <div class="mp-card">
+    <h6 class="mb-0">新增预告行</h6>
+    <div class="card-sub">只填会变的列,下面 3 个固定列自动套用</div>
+    <div class="mp-fixed-pills">
+      <span class="pill">开服第几天显示预告 <b>10</b></span>
+      <span class="pill">是否有合服大礼 <b>1</b></span>
+      <span class="pill">公告内容 <b>945018</b></span>
+    </div>
+    <form method="post" action="/mergepreview/rows">
+      <table class="mp-tbl" id="mp-add">
+        <thead><tr>
+          <th style="width:110px">服务器id<span class="req">*</span></th>
+          <th style="min-width:220px">说明<span class="req">*</span></th>
+          <th style="width:120px">预告持续几天</th>
+          <th style="width:170px">开服第几天显示补偿入口</th>
+          <th style="width:140px">补偿入口持续几天</th>
+          <th style="width:120px">是否有合服补偿</th>
+          <th style="width:44px"></th>
+        </tr></thead>
+        <tbody>
+          <tr class="mp-add-row">
+            <td><input class="form-control" name="row_id" inputmode="numeric" placeholder="10054"></td>
+            <td><input class="form-control" name="row_name" placeholder="目标服大理14服"></td>
+            <td><input class="form-control num" name="row_previewdur" inputmode="numeric" placeholder="3"></td>
+            <td><input class="form-control num" name="row_compopen" inputmode="numeric" placeholder="13"></td>
+            <td><input class="form-control num" name="row_compdur" inputmode="numeric" placeholder="2"></td>
+            <td><input class="form-control num" name="row_compitem" inputmode="numeric" placeholder="0"></td>
+            <td><button type="button" class="mp-del" title="删除此行" onclick="mpDel(this)">✕</button></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="mp-actions">
+        <button type="button" class="mp-addline" onclick="mpAdd()">+ 再加一行</button>
+        <button class="btn btn-primary px-4">追加入库</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- 本次追加(高亮) -->
+  {{ if .JustAdded }}
+  <div class="mp-card mp-justadded">
+    <h6 class="mb-2">✅ 本次追加 {{ len .JustAdded }} 条</h6>
+    <table class="table table-sm mp-tbl mb-0">
+      <thead><tr><th>服务器id</th><th>说明</th><th>开服第几天显示预告</th><th>预告持续几天</th><th>开服第几天显示补偿入口</th><th>补偿入口持续几天</th><th>是否有合服补偿</th><th>是否有合服大礼</th><th>公告内容</th></tr></thead>
+      <tbody>
+        {{ range .JustAdded }}
+        <tr>
+          <td><span class="badge bg-success">新</span> {{ .ID }}</td><td>{{ .Name }}</td>
+          <td>{{ .PreviewOpenTime }}</td><td>{{ .PreviewDuration }}</td><td>{{ .CompensationOpenTime }}</td>
+          <td>{{ .CompensationDurationTime }}</td><td>{{ .IsCompensationItem }}</td><td>{{ .IsGrandGift }}</td><td>{{ .MiaoShu }}</td>
+        </tr>
+        {{ end }}
+      </tbody>
+    </table>
+  </div>
+  {{ end }}
+
+  <!-- 列表 -->
+  <div class="mp-card">
+    <div class="d-flex align-items-center justify-content-between">
+      <h6 class="mb-0">全量预告行(共 {{ .Total }} 条,列表显示最新 {{ .PageSize }} 条)</h6>
+      <form method="get" action="/mergepreview" class="d-flex gap-2">
+        <input class="form-control form-control-sm" style="max-width:220px" name="q" value="{{ .Q }}" placeholder="搜索 Id / Name">
+        <button class="btn btn-sm btn-outline-primary">搜索</button>
+      </form>
+    </div>
+    <table class="table table-sm table-hover mp-tbl mt-2">
+      <thead><tr><th>服务器id</th><th>说明</th><th>开服第几天显示预告</th><th>预告持续几天</th><th>开服第几天显示补偿入口</th><th>补偿入口持续几天</th><th>是否有合服补偿</th><th>是否有合服大礼</th><th>公告内容</th><th></th></tr></thead>
+      <tbody>
+        {{ range .Rows }}
+        <tr>
+          <td>{{ .ID }}</td><td>{{ .Name }}</td><td>{{ .PreviewOpenTime }}</td><td>{{ .PreviewDuration }}</td>
+          <td>{{ .CompensationOpenTime }}</td><td>{{ .CompensationDurationTime }}</td><td>{{ .IsCompensationItem }}</td>
+          <td>{{ .IsGrandGift }}</td><td>{{ .MiaoShu }}</td>
+          <td>
+            <form method="post" action="/mergepreview/rows/delete" data-confirm="删除服 {{ .ID }}?" data-danger="1">
+              <input type="hidden" name="id" value="{{ .ID }}">
+              <button class="btn btn-sm btn-link text-danger p-0">删除</button>
+            </form>
+          </td>
+        </tr>
+        {{ else }}
+        <tr><td colspan="10" class="text-muted text-center py-3">暂无数据,请先用命令行导入或「新增预告行」</td></tr>
+        {{ end }}
+      </tbody>
+    </table>
+    <div class="d-flex gap-2">
+      {{ if gt .Page 1 }}<a class="btn btn-sm btn-outline-secondary" href="/mergepreview?q={{ .Q }}&page={{ dec .Page }}">上一页</a>{{ end }}
+      {{ if .HasNext }}<a class="btn btn-sm btn-outline-secondary" href="/mergepreview?q={{ .Q }}&page={{ add1 .Page }}">下一页</a>{{ end }}
+    </div>
+  </div>
+
+  <!-- 提交并更新:生成最新预告 → 与线上diff → 建工单走审批 -->
+  <div class="mp-card">
+    <form method="post" action="/mergepreview/publish" class="d-inline"
+          data-confirm="将生成最新预告并向所有游戏服下发 + 热更,确认发起合服预告发布工单?" data-danger="1">
+      <button class="btn btn-primary">提交并更新</button>
+    </form>
+    {{ if .GenErr }}<div class="alert alert-danger mt-2 mb-0">{{ .GenErr }}</div>{{ end }}
+    {{ if .SubmitMsg }}<div class="alert alert-info mt-2 mb-0">{{ .SubmitMsg }}</div>{{ end }}
+  </div>
+</div>
+<script>
+function mpAdd() {
+  var tb = document.querySelector('#mp-add tbody');
+  var tr = tb.querySelector('.mp-add-row').cloneNode(true);
+  tr.querySelectorAll('input').forEach(function(i){ i.value=''; });
+  tb.appendChild(tr);
+}
+function mpDel(btn) {
+  var tb = document.querySelector('#mp-add tbody');
+  if (tb.querySelectorAll('.mp-add-row').length > 1) btn.closest('tr').remove();
+  else btn.closest('tr').querySelectorAll('input').forEach(function(i){ i.value=''; });
+}
+// 单按钮导入:点「导入预告」直接弹文件框,选好文件后自动提交
+// (用 requestSubmit 触发 submit 事件,才会走全局 data-confirm 确认弹窗)
+(function(){
+  var f = document.getElementById('mpImportFile');
+  if (!f) return;
+  f.addEventListener('click', function(){ f.value = ''; }); // 重选同一文件也能触发 change
+  f.addEventListener('change', function(){
+    if (f.files && f.files.length && f.form) f.form.requestSubmit();
+  });
+})();
+</script>
+{{ template "foot" . }}

@@ -1,0 +1,25 @@
+# 二进制 / 构建产物
+/gongdan
+/gongdan.exe
+/deploy/
+/deploy.zip
+
+# 本地数据 / 日志
+*.db
+*.log
+/tmp/
+
+# 真实配置与服列表（含密钥 / 真实 IP / DB 密码）——绝不提交
+/config.yaml
+/ServerConfigList*.txt
+/MergeServerFunction*.txt
+/settings.json
+
+# 依赖 / 工具
+/node_modules/
+
+# 本地 / 编辑器
+/.claude/
+/.playwright-mcp/
+/.idea/
+/.vscode/

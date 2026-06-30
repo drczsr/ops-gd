@@ -1,0 +1,114 @@
+{{ template "head" . }}
+<style>
+  .set-card { max-width: 560px; }
+  .set-card .card-body { padding: 0; }
+  .set-sec { padding: 18px 20px; }
+  .set-row { padding: 16px 20px; border-top: 1px solid #f1f2f4; display: flex; align-items: flex-start; gap: 14px; }
+  .set-row .main { flex: 1; }
+  .set-row .title { font-size: 14.5px; font-weight: 500; color: #111827; }
+  .set-row .desc { font-size: 12.5px; color: #6b7280; margin-top: 3px; line-height: 1.5; }
+  .set-mode-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .set-mode-head .lbl { font-size: 14px; font-weight: 500; color: #374151; }
+  .set-pill { font-size: 11px; font-weight: 500; padding: 2px 9px; border-radius: 20px; }
+  .set-pill.safe { color: #1e7e34; background: #e6f4ea; }
+  .set-pill.danger { color: #b42318; background: #fde7e9; }
+  .set-danger { display: flex; align-items: center; gap: 6px; color: #dc3545; font-size: 12.5px; margin-top: 8px; }
+  .set-switch { position: relative; display: inline-block; width: 40px; height: 22px; flex: none; margin-top: 2px; }
+  .set-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .set-switch .slider { position: absolute; inset: 0; background: #d7dbe0; border-radius: 22px; cursor: pointer; transition: background .15s; }
+  .set-switch .slider::before { content: ""; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: transform .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  .set-switch input:checked + .slider { background: #0d6efd; }
+  .set-switch input:checked + .slider::before { transform: translateX(18px); }
+  .set-switch input:focus-visible + .slider { box-shadow: 0 0 0 3px rgba(13,110,253,.3); }
+  .set-foot { padding: 14px 20px; border-top: 1px solid #f1f2f4; background: #fafbfc; display: flex; justify-content: flex-end; }
+</style>
+
+<h4 class="mb-3">系统设置</h4>
+
+{{ if .Saved }}<div class="alert alert-success py-2">已保存,立即生效。</div>{{ end }}
+{{ if .Err }}<div class="alert alert-danger py-2">保存失败:{{ .Err }}</div>{{ end }}
+
+<div class="card wo-card set-card">
+  <div class="card-body">
+    <form method="post" action="/settings">
+
+      <div class="set-sec">
+        <div class="set-mode-head">
+          <span class="lbl">执行模式</span>
+          <span class="set-pill safe" id="mode_pill_safe" {{ if eq .S.Mode "real" }}style="display:none"{{ end }}>演练中 · 安全</span>
+          <span class="set-pill danger" id="mode_pill_real" {{ if ne .S.Mode "real" }}style="display:none"{{ end }}>真实执行 · 危险</span>
+        </div>
+        <select class="form-select" name="mode" id="mode">
+          <option value="mock" {{ if eq .S.Mode "mock" }}selected{{ end }}>mock(演练,不动真实服务器)</option>
+          <option value="real" {{ if eq .S.Mode "real" }}selected{{ end }}>real(真实执行)</option>
+        </select>
+        <div class="set-danger">
+          <span aria-hidden="true">⚠</span>
+          <span>real 模式下执行会直接操作生产服务器,请谨慎。</span>
+        </div>
+      </div>
+
+      <div class="set-row">
+        <div class="main">
+          <div class="title">审批通过后自动执行</div>
+          <div class="desc">工单审批通过且无计划时间时,立即自动进入执行(发版/合服/热更三类生效)。</div>
+        </div>
+        <label class="set-switch">
+          <input type="checkbox" name="auto_execute" {{ if .S.AutoExecute }}checked{{ end }}>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="set-row">
+        <div class="main">
+          <div class="title">测试通过后自动开放</div>
+          <div class="desc">测试通过后自动进入开放阶段(发版/合服;热更无此阶段)。</div>
+        </div>
+        <label class="set-switch">
+          <input type="checkbox" name="auto_open" {{ if .S.AutoOpen }}checked{{ end }}>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="set-row">
+        <div class="main">
+          <div class="title">显示全部服务器(选服 + 游戏服配置 + 服务器管理)</div>
+          <div class="desc">关:三页仅显示 ID&gt;10000 的正式服(配置/服务器管理页 WorldType 0/1/2/3,选服页游戏/战斗/副本服);开:不限,显示全部。</div>
+        </div>
+        <label class="set-switch">
+          <input type="checkbox" name="show_all_servers" {{ if .S.ShowAllServers }}checked{{ end }}>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="set-foot">
+        <button class="btn btn-primary" type="submit">保存</button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var sel = document.getElementById('mode');
+    var safe = document.getElementById('mode_pill_safe');
+    var real = document.getElementById('mode_pill_real');
+    if (!sel) return;
+    sel.addEventListener('change', function () {
+      var isReal = sel.value === 'real';
+      safe.style.display = isReal ? 'none' : '';
+      real.style.display = isReal ? '' : 'none';
+    });
+    // 切到 real 真实执行模式时,用自定义弹窗二次确认
+    var form = sel.closest('form');
+    if (form) form.addEventListener('submit', function (e) {
+      if (sel.value === 'real') {
+        e.preventDefault();
+        window.uiConfirm({ message: '确认切换到 real 真实执行模式?执行将直接操作生产服务器。', danger: true })
+          .then(function (ok) { if (ok) form.submit(); });
+      }
+    });
+  })();
+</script>
+{{ template "foot" . }}

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>登录 - 运维工单</title>
+  <link href="/static/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background: #f4f6f9; min-height: 100vh; display: flex;
+      align-items: center; justify-content: center; padding: 1rem; }
+    .login-card { width: 100%; max-width: 400px; background: #fff; border-radius: .9rem;
+      box-shadow: 0 1px 3px rgba(16,24,40,.06), 0 8px 28px rgba(16,24,40,.08);
+      padding: 2.2rem 2rem 2rem; }
+    .login-brand { display: flex; flex-direction: column; align-items: center;
+      gap: .8rem; margin-bottom: 1.6rem; }
+    .login-logo { width: 52px; height: 52px; border-radius: 14px;
+      background: linear-gradient(135deg,#0d6efd,#3b82f6); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 12px rgba(13,110,253,.25); }
+    .login-logo svg { width: 30px; height: 30px; }
+    .login-brand h1 { font-size: 1.25rem; font-weight: 700; color: #101828; margin: 0; }
+    .login-brand .sub { color: #667085; font-size: .85rem; }
+    .login-card .form-label { font-weight: 600; font-size: .88rem; color: #344054;
+      margin-bottom: .3rem; }
+    .login-card .form-control { border-radius: 9px; border: 1px solid #e4e7ec;
+      background: #fcfcfd; padding: .55rem .8rem;
+      transition: border-color .15s, box-shadow .15s; box-shadow: none; }
+    .login-card .form-control::placeholder { color: #cbd2dc; }
+    .login-card .form-control:focus { border-color: #84caff; background: #fff;
+      box-shadow: 0 0 0 3px rgba(21,112,239,.12); }
+    .btn-login { width: 100%; padding: .55rem; font-weight: 600; border-radius: 9px; }
+    .login-divider { display: flex; align-items: center; gap: .8rem;
+      color: #98a2b3; font-size: .78rem; margin: 1.2rem 0 .9rem; }
+    .login-divider::before, .login-divider::after { content: ""; flex: 1;
+      height: 1px; background: #eaecf0; }
+    .btn-wework { width: 100%; border-radius: 9px; font-weight: 600;
+      color: #067647; background: #f6fef9; border: 1px solid #abefc6; }
+    .btn-wework:hover { background: #edfcf2; color: #067647; border-color: #75e0a7; }
+  </style>
+</head>
+<body>
+<div class="login-card">
+  <div class="login-brand">
+    <span class="login-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="M7 9.8l3 2.2-3 2.2"/><line x1="12.5" y1="14.6" x2="16.5" y2="14.6"/></svg>
+    </span>
+    <h1>运维工单系统</h1>
+    <span class="sub">游戏服运维工单 · 审批 · 执行</span>
+  </div>
+
+  {{ if .Error }}<div class="alert alert-danger py-2">{{ .Error }}</div>{{ end }}
+
+  {{ if .PasswordEnabled }}
+  <form method="post" action="/login">
+    <div class="mb-3">
+      <label class="form-label">用户名</label>
+      <input class="form-control" name="username" placeholder="用户名" autofocus>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">密码</label>
+      <input class="form-control" type="password" name="password" placeholder="请输入密码">
+    </div>
+    <button class="btn btn-primary btn-login">登 录</button>
+  </form>
+  {{ end }}
+
+  {{ if .WeworkEnabled }}
+  {{ if .PasswordEnabled }}<div class="login-divider">或</div>{{ end }}
+  <a class="btn btn-wework" href="/login/wework">企业微信扫码登录</a>
+  {{ end }}
+</div>
+</body>
+</html>

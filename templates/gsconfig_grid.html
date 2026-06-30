@@ -1,0 +1,125 @@
+{{ template "head" . }}
+<link href="/static/handsontable.full.min.css" rel="stylesheet">
+<style>
+  .gx-bar { display:flex; align-items:center; gap:.6rem; margin-bottom:.8rem; flex-wrap:wrap; }
+  .gx-bar h4 { margin:0; font-weight:700; }
+  .gx-bar .spacer { flex:1; }
+  .gx-hint { color:#667085; font-size:.85rem; }
+  #gx-msg { font-size:.85rem; }
+  #gx-table { font-size:.82rem; }
+  /* 表头第2行中文描述,小一号灰字 */
+  #gx-table .gx-cn { color:#6b7280; font-weight:400; font-size:10px; }
+  /* 表头列名左对齐(默认居中) */
+  #gx-table .handsontable thead th .relative { text-align: left; }
+  #gx-table .handsontable thead th .colHeader { text-align: left; }
+  /* 改动过的格子高亮 */
+  #gx-table td.gx-dirty { background:#fff7e6 !important; box-shadow: inset 0 0 0 2px #f5b544; }
+  .handsontable th { white-space: nowrap; }
+</style>
+
+<div class="gx-bar">
+  <h4>批量编辑游戏服配置</h4>
+  <a class="btn btn-sm btn-outline-secondary" href="/gsconfig">← 返回列表</a>
+  <span class="spacer"></span>
+  <span id="gx-msg" class="text-muted"></span>
+  <button id="gx-save" class="btn btn-primary btn-sm" disabled>保存修改 (0)</button>
+</div>
+<div class="gx-hint mb-2">点格即改,支持 Ctrl+C / Ctrl+V 像 Excel 一样批量复制粘贴;改过的格子高亮。表头点小箭头可按列筛选。Id 列不可改。保存只更新配置库;推线上请到列表页点「生成 serverlist」。<span class="text-muted">(评估授权 non-commercial-and-evaluation)</span></div>
+<div id="gx-table"></div>
+
+<script src="/static/handsontable.full.min.js"></script>
+<script>
+(function () {
+  var dirty = {};   // key "id field" -> {id, field, value}
+  var hot = null;
+
+  function refreshSaveBtn() {
+    var n = Object.keys(dirty).length;
+    var b = document.getElementById('gx-save');
+    b.textContent = '保存修改 (' + n + ')';
+    b.disabled = n === 0;
+  }
+  function msg(text, ok) {
+    var m = document.getElementById('gx-msg');
+    m.textContent = text;
+    m.className = ok ? 'text-success' : 'text-danger';
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch];
+    });
+  }
+
+  fetch('/gsconfig/grid/data').then(function (r) { return r.json(); }).then(function (data) {
+    var columns = data.columns.map(function (c) {
+      return { data: c.field, readOnly: c.field === 'Id' };
+    });
+    var colHeaders = data.columns.map(function (c) {
+      return c.desc ? (esc(c.field) + '<br><span class="gx-cn">' + esc(c.desc) + '</span>') : esc(c.field);
+    });
+    var container = document.getElementById('gx-table');
+    hot = new Handsontable(container, {
+      data: data.rows,
+      columns: columns,
+      colHeaders: colHeaders,
+      rowHeaders: true,
+      height: 'calc(100vh - 200px)',
+      width: '100%',
+      stretchH: 'none',
+      colWidths: function (i) { return data.columns[i].data === 'Id' ? 70 : 150; },
+      fixedColumnsStart: 1,        // 冻结 Id 列
+      manualColumnResize: true,
+      filters: true,
+      dropdownMenu: ['filter_by_condition', 'filter_by_value', 'filter_action_bar'],
+      // 右键菜单:只放安全项。不放插入/删除行——本页保存只更新已有服,
+      // 增删服请走列表页「+ 新增服」,以保证 Id 分配正确。
+      // 粘贴无菜单项(浏览器安全限制),用 Ctrl+V。
+      contextMenu: ['copy', 'cut', '---------', 'undo', 'redo'],
+      licenseKey: 'non-commercial-and-evaluation',
+      afterChange: function (changes, source) {
+        if (source === 'loadData' || !changes) { return; }
+        changes.forEach(function (ch) {
+          var row = ch[0], prop = ch[1], oldV = ch[2], newV = ch[3];
+          if (String(oldV) === String(newV)) { return; }
+          var id = hot.getDataAtRowProp(row, 'Id');
+          dirty[id + ' ' + prop] = { id: String(id), field: prop, value: String(newV == null ? '' : newV) };
+        });
+        refreshSaveBtn();
+        hot.render();
+      },
+      afterGetCellMeta: function (row, col, meta) {
+        // 注意:本钩子在构造期的首次渲染里就会触发,此时外层 hot 仍为 null,
+        // 故用 this(当前实例),不要用 hot。
+        var src = this.getSourceDataAtRow(row);
+        var prop = this.colToProp(col);
+        if (src && dirty[src.Id + ' ' + prop]) {
+          meta.className = (meta.className || '') + ' gx-dirty';
+        }
+      }
+    });
+  }).catch(function (e) { msg('加载数据失败:' + e, false); });
+
+  document.getElementById('gx-save').addEventListener('click', function () {
+    var changes = Object.keys(dirty).map(function (k) { return dirty[k]; });
+    if (changes.length === 0) { return; }
+    window.uiConfirm({ message: '将保存 ' + changes.length + ' 处改动?' }).then(function (ok) {
+      if (!ok) return;
+      fetch('/gsconfig/grid/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ changes: changes })
+      }).then(function (r) { return r.json(); }).then(function (res) {
+        if (res.ok) {
+          dirty = {};
+          refreshSaveBtn();
+          if (hot) { hot.render(); }
+          msg('已保存 ' + res.updated + ' 处改动', true);
+        } else {
+          msg('保存失败:' + (res.error || '未知错误'), false);
+        }
+      }).catch(function (e) { msg('保存请求出错:' + e, false); });
+    });
+  });
+})();
+</script>
+{{ template "foot" . }}

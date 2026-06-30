@@ -1,0 +1,928 @@
+{{ template "head" . }}
+<style>
+  /* ===== 新建工单页:精炼企业控制台风格 ===== */
+  .new-order { max-width: 1680px; margin: 0; padding-bottom: 2.5rem; }
+
+  /* 页头 */
+  .no-head { display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 1rem; padding-bottom: 1.15rem; margin-bottom: 1.4rem; border-bottom: 1px solid #e9edf2; }
+  .no-head h4 { font-weight: 700; font-size: 1.5rem; color: #101828; letter-spacing: -.01em; margin: 0; }
+  .no-head .sub { color: #667085; font-size: .9rem; margin-top: .3rem; }
+  .no-back { display: inline-flex; align-items: center; gap: .35rem; flex: none;
+    font-size: .85rem; font-weight: 500; color: #475467; text-decoration: none;
+    border: 1px solid #d5dbe3; border-radius: 9px; padding: .42rem .8rem; background: #fff;
+    transition: background .15s, border-color .15s; }
+  .no-back:hover { background: #f6f8fb; border-color: #c2cad6; color: #1f2937; }
+
+  /* 卡片 */
+  .no-card { background: #fff; border: 1px solid #e7eaef; border-radius: 16px;
+    box-shadow: 0 1px 2px rgba(16,24,40,.04); margin-bottom: 1.15rem; }
+  .no-card-body { padding: 1.5rem 1.6rem; }
+
+  /* 分区标题:序号徽章 + 清晰标题 + 右侧提示 */
+  .no-sec { display: flex; align-items: center; gap: .65rem; margin: 0 0 1.3rem;
+    font-size: 1.02rem; font-weight: 650; color: #101828; }
+  .no-sec .step { width: 27px; height: 27px; flex: none; border-radius: 8px; display: grid;
+    place-items: center; background: #eaf2ff; color: #1570ef; font-size: .82rem; font-weight: 700; }
+  .no-sec .hint { margin-left: auto; font-size: .78rem; font-weight: 400; color: #98a2b3; }
+
+  /* 工单类型选择器:三选一卡片(决定整张表单形态的主控) */
+  .type-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem; margin-bottom: 1.15rem; }
+  .type-tile { position: relative; display: flex; align-items: center; gap: .75rem; padding: .85rem 1rem;
+    border: 1px solid #e3e7ee; border-radius: 13px; background: #fff; cursor: pointer;
+    transition: border-color .15s, box-shadow .15s, background .15s; }
+  .type-tile:hover { border-color: #c6cedb; }
+  .type-tile input { position: absolute; opacity: 0; pointer-events: none; }
+  .type-tile .tt-ic { width: 40px; height: 40px; flex: none; border-radius: 11px; display: grid;
+    place-items: center; background: #f0f3f8; color: #667085; transition: background .15s, color .15s; }
+  .type-tile .tt-ic .ic { width: 22px; height: 22px; }
+  .type-tile .tt-text { display: flex; flex-direction: column; line-height: 1.3; min-width: 0; }
+  .type-tile .tt-name { font-weight: 650; font-size: .98rem; color: #101828; }
+  .type-tile .tt-desc { font-size: .79rem; color: #7a8494; margin-top: .1rem; }
+  .type-tile.on { border-color: #1570ef; background: #f6faff; box-shadow: 0 0 0 3px rgba(21,112,239,.1); }
+  .type-tile.on .tt-ic { background: #e0edff; color: #1570ef; }
+  @media (max-width: 720px) { .type-picker { grid-template-columns: 1fr; } }
+
+  /* 执行时机:立即 / 定时 分段开关 */
+  .seg { display: inline-flex; background: #f0f3f8; border: 1px solid #e3e7ee;
+    border-radius: 10px; padding: 3px; gap: 3px; }
+  .seg label { margin: 0; cursor: pointer; }
+  .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg span { display: block; padding: .42rem .95rem; border-radius: 8px; font-size: .88rem;
+    font-weight: 600; color: #667085; transition: background .15s, color .15s; white-space: nowrap; }
+  .seg input:checked + span { background: #fff; color: #1570ef; box-shadow: 0 1px 2px rgba(16,24,40,.12); }
+  .sched-row { display: flex; align-items: center; gap: .55rem; flex-wrap: wrap; }
+  .new-order #sched-time { flex: none; width: 200px; max-width: 200px; margin: 0; }
+
+  /* 基础信息:更紧凑的卡片(只是元数据,不必占太大) */
+  .no-card.compact .no-card-body { padding-top: 1.1rem; padding-bottom: 1.15rem; }
+  .no-card.compact .no-sec { margin-bottom: 1rem; }
+
+  /* 表单控件:统一尺寸 + 精致聚焦环 */
+  .new-order .form-label { font-size: .82rem; font-weight: 600; color: #344054; margin-bottom: .4rem; }
+  .new-order .form-label .text-muted { font-weight: 400; }
+  .new-order .form-control,
+  .new-order .form-select { border: 1px solid #d5dbe3; border-radius: 10px;
+    padding: .58rem .8rem; font-size: .94rem; color: #1f2937; box-shadow: none;
+    transition: border-color .15s, box-shadow .15s; }
+  .new-order .form-control::placeholder { color: #aeb6c2; }
+  .new-order .form-control:focus,
+  .new-order .form-select:focus { border-color: #84caff; box-shadow: 0 0 0 4px rgba(21,112,239,.12); }
+  .new-order textarea.form-control { line-height: 1.5; }
+
+  /* 日期/时间控件:收窄宽度 + 美化原生日历图标 */
+  .new-order input[type=date],
+  .new-order input[type=datetime-local] { max-width: 340px; color: #475467; cursor: pointer; }
+  .new-order input[type=date]::-webkit-datetime-edit,
+  .new-order input[type=datetime-local]::-webkit-datetime-edit { padding: 0; }
+  .new-order input[type=date]::-webkit-calendar-picker-indicator,
+  .new-order input[type=datetime-local]::-webkit-calendar-picker-indicator {
+    cursor: pointer; opacity: .5; padding: .15rem; border-radius: 5px; transition: opacity .15s, background .15s; }
+  .new-order input[type=date]::-webkit-calendar-picker-indicator:hover,
+  .new-order input[type=datetime-local]::-webkit-calendar-picker-indicator:hover { opacity: 1; background: #eaf2ff; }
+
+  /* 普通复选框行(发版/热更) */
+  .new-order .form-check-input:checked { background-color: #1570ef; border-color: #1570ef; }
+  .new-order .form-check-label { color: #475467; font-size: .92rem; }
+
+  /* 合服/预合服 选项卡片 */
+  .opt-card { border: 1px solid #e3e7ee; border-radius: 13px; margin-bottom: .85rem;
+    background: #fff; transition: border-color .15s, box-shadow .15s, background .15s; }
+  .opt-card:last-child { margin-bottom: 0; }
+  .opt-card:hover { border-color: #c6cedb; }
+  .opt-card.on { border-color: #1570ef; background: #f6faff; box-shadow: 0 0 0 3px rgba(21,112,239,.1); }
+  .opt-head { display: flex; align-items: center; gap: .8rem; padding: 1rem 1.1rem;
+    margin: 0; cursor: pointer; user-select: none; }
+  .opt-check { width: 1.25em; height: 1.25em; flex: none; cursor: pointer; }
+  .opt-ic { width: 38px; height: 38px; flex: none; border-radius: 10px; display: grid;
+    place-items: center; background: #f0f3f8; color: #667085; transition: background .15s, color .15s; }
+  .opt-ic .ic { width: 20px; height: 20px; }
+  .opt-card.on .opt-ic { background: #e0edff; color: #1570ef; }
+  .opt-text { display: flex; flex-direction: column; line-height: 1.4; min-width: 0; }
+  .opt-title { font-weight: 650; font-size: .98rem; color: #101828; }
+  .opt-desc { color: #7a8494; font-size: .83rem; margin-top: .12rem; }
+  .opt-body { display: none; padding: .2rem 1.1rem 1.15rem; border-top: 1px solid #eaeef3; margin-top: .2rem; }
+  .opt-card.on .opt-body { display: block; padding-top: 1.1rem; }
+  .opt-body code { background: #eef1f4; padding: .05rem .35rem; border-radius: .25rem; color: #475569; font-size: .85em; }
+
+  /* 底部操作条 */
+  .no-actions { display: flex; justify-content: flex-end; gap: .65rem; align-items: center; margin-top: .3rem; }
+  .no-actions .btn { border-radius: 10px; padding: .6rem 1.4rem; font-weight: 600; font-size: .95rem; }
+  .no-actions .btn-primary { background: #1570ef; border-color: #1570ef; box-shadow: 0 1px 2px rgba(21,112,239,.25); }
+  .no-actions .btn-primary:hover { background: #0e5fd8; border-color: #0e5fd8; }
+  .no-actions .btn-light { background: #fff; border: 1px solid #d5dbe3; color: #475467; }
+  .no-actions .btn-light:hover { background: #f6f8fb; }
+
+  /* 类型块/选服区在内容卡片里的边距微调 */
+  .type-block.mt-3 { margin-top: 0 !important; }
+  #server-section.mt-4 { margin-top: 1.3rem !important; }
+
+  /* 提交校验错误条:页内提示,替代后端裸文本错误页 */
+  .no-alert { display: none; align-items: flex-start; gap: .6rem; margin-bottom: 1.15rem;
+    padding: .85rem 1rem; border: 1px solid #fda29b; border-radius: 12px; background: #fff4f3;
+    color: #b42318; font-size: .9rem; box-shadow: 0 1px 2px rgba(180,35,24,.06); }
+  .no-alert.show { display: flex; }
+  .no-alert .al-ic { width: 20px; height: 20px; flex: none; margin-top: .05rem; }
+  .no-alert .al-text { line-height: 1.45; }
+  .no-alert .al-text b { font-weight: 650; }
+</style>
+<div class="new-order">
+<div class="no-head">
+  <div>
+    <h4>新建工单</h4>
+    <div class="sub">填写信息并提交,进入审批流程</div>
+  </div>
+  <a href="/orders" class="no-back"><span style="font-size:1.05em;line-height:1">←</span> 返回列表</a>
+</div>
+<form method="post" action="/orders" id="order-form" novalidate>
+  <div class="no-alert" id="form-alert" role="alert">
+    <svg class="al-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span class="al-text" id="form-alert-text"></span>
+  </div>
+  <div class="type-picker">
+    <label class="type-tile" data-type="merge">
+      <input type="radio" name="type" value="merge" checked onchange="switchType()">
+      <span class="tt-ic"><svg class="ic"><use href="#ic-t-merge"/></svg></span>
+      <span class="tt-text"><span class="tt-name">合服</span><span class="tt-desc">停服合库 / 预合服改配置</span></span>
+    </label>
+    <label class="type-tile" data-type="release">
+      <input type="radio" name="type" value="release" onchange="switchType()">
+      <span class="tt-ic"><svg class="ic"><use href="#ic-t-release"/></svg></span>
+      <span class="tt-text"><span class="tt-name">发版</span><span class="tt-desc">更新版本包 + 重启</span></span>
+    </label>
+    <label class="type-tile" data-type="hotupdate">
+      <input type="radio" name="type" value="hotupdate" onchange="switchType()">
+      <span class="tt-ic"><svg class="ic"><use href="#ic-t-hot"/></svg></span>
+      <span class="tt-text"><span class="tt-name">热更</span><span class="tt-desc">不停服下发配置 reload</span></span>
+    </label>
+  </div>
+
+  <div class="no-card compact">
+    <div class="no-card-body">
+      <div class="no-sec"><span class="step">1</span>基础信息</div>
+      <div class="row g-3">
+        <div class="col-md-5">
+          <label class="form-label">标题</label>
+          <input class="form-control" name="title" required placeholder="简要描述本次工单">
+        </div>
+        <div class="col-md-7">
+          <label class="form-label">执行时机</label>
+          <div class="sched-row">
+            <div class="seg" id="sched-seg">
+              <label><input type="radio" name="sched_mode" value="now" checked onchange="switchSched()"><span>审批后立即执行</span></label>
+              <label><input type="radio" name="sched_mode" value="at" onchange="switchSched()"><span>定时执行</span></label>
+            </div>
+            <input type="datetime-local" class="form-control" name="scheduled_time" id="sched-time" style="display:none">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="no-card">
+    <div class="no-card-body">
+      <div class="no-sec"><span class="step">2</span>工单内容<span class="hint" id="content-hint"></span></div>
+
+  <!-- 合服 / 预合服 -->
+  <div id="block-merge" class="type-block mt-3">
+    <div class="opt-card" id="card-merge">
+      <label class="opt-head">
+        <input class="form-check-input opt-check" type="checkbox" name="include_merge" id="include_merge" onchange="switchMergeSub()">
+        <span class="opt-ic"><svg class="ic"><use href="#ic-t-merge"/></svg></span>
+        <span class="opt-text">
+          <span class="opt-title">合服</span>
+          <span class="opt-desc">执行真正的合服:停服 → 备份 → 合库 → 清源 → 起服</span>
+        </span>
+      </label>
+      <div id="sub-merge" class="opt-body">
+        <div class="row g-3">
+          <div class="col-md-8">
+            <label class="form-label">合服列表 <span class="text-muted fw-normal">(每行 <code>目标服ID,源服ID</code>)</span></label>
+            <textarea class="form-control" name="merge_pairs" rows="3" placeholder="10371,10373&#10;10374,10375"></textarea>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label d-block">合服工具包 <span class="text-muted fw-normal">(含 dbmerge)</span></label>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" name="auto_tool_package" id="auto_tool_package" checked onchange="switchAutoTool()">
+              <label class="form-check-label" for="auto_tool_package">自动选择 <span class="text-muted fw-normal">(按被合服版本匹配)</span></label>
+            </div>
+            <input class="form-control" name="tool_package" id="tool_package" list="pkg-merge" autocomplete="off" placeholder="DBMergeTool_xxx.zip" style="display:none">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="opt-card" id="card-premerge">
+      <label class="opt-head">
+        <input class="form-check-input opt-check" type="checkbox" name="include_premerge" id="include_premerge" onchange="switchMergeSub()">
+        <span class="opt-ic"><svg class="ic"><use href="#ic-clock"/></svg></span>
+        <span class="opt-text">
+          <span class="opt-title">预合服</span>
+          <span class="opt-desc">只改配置:给目标服设合服公告日期(不停服、不合库)</span>
+        </span>
+      </label>
+      <div id="sub-premerge" class="opt-body">
+        <div class="row g-3">
+          <div class="col-md-8">
+            <label class="form-label">预合服服号 <span class="text-muted fw-normal">(逗号 / 空格 / 换行分隔)</span></label>
+            <textarea class="form-control" name="premerge_ids" rows="3" placeholder="10001,10002&#10;10005 10006"></textarea>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">预合服时间</label>
+            <input type="date" class="form-control" name="premerge_date">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 发版 -->
+  <div id="block-release" class="type-block mt-3" style="display:none">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">版本包</label>
+        <input class="form-control" name="version_package" list="pkg-list" autocomplete="off" placeholder="ProjectT_xxx.zip">
+      </div>
+    </div>
+    <div class="form-check mt-3">
+      <input class="form-check-input" type="checkbox" name="include_battle" id="include_battle">
+      <label class="form-check-label" for="include_battle">连带处理对应的战斗服 + 战斗副本服(一并换包+开服)</label>
+    </div>
+    <div class="form-check mt-2">
+      <input class="form-check-input" type="checkbox" name="include_hotupdate" id="include_hotupdate">
+      <label class="form-check-label" for="include_hotupdate">发版后热更(不停服 reload)</label>
+    </div>
+    <div id="hot-extra" class="row g-3 mt-1" style="display:none">
+      <div class="col-md-6">
+        <label class="form-label">热更配置包 <span class="text-muted fw-normal">(含 config)</span></label>
+        <input class="form-control" name="hot_package" list="pkg-config" autocomplete="off" placeholder="ProjectT_Config_xxx.zip">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">热更文件列表(逗号分隔)</label>
+        <input class="form-control" name="hot_files" placeholder="a.ini,CommonItem.txt,Boss/x.xml">
+      </div>
+      <div class="col-12">
+        <label class="form-label d-block">热更范围</label>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="hot_scope" id="hot_scope_selected" value="selected">
+          <label class="form-check-label" for="hot_scope_selected">当前选中服</label>
+        </div>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="hot_scope" id="hot_scope_all" value="all">
+          <label class="form-check-label" for="hot_scope_all">全服(ID&gt;10000 且 游戏/战斗/副本服)</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <datalist id="pkg-list">
+    {{ range .Packages }}<option value="{{ . }}"></option>{{ end }}
+  </datalist>
+  <!-- 按关键字筛选的下拉:合服工具包(dbmerge)/ 发版热更配置包(config),由 JS 从 pkg-list 派生 -->
+  <datalist id="pkg-merge"></datalist>
+  <datalist id="pkg-config"></datalist>
+
+  <!-- 热更 -->
+  <div id="block-hotupdate" class="type-block mt-3" style="display:none">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">配置包 <span class="text-muted fw-normal">(含 config)</span></label>
+        <input class="form-control" name="config_package_hot" list="pkg-config" autocomplete="off" placeholder="ProjectT_Release_Config_xxx.zip">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">热更文件列表(逗号分隔)</label>
+        <input class="form-control" name="hot_files_hot" value="ServerConfigList.txt">
+      </div>
+    </div>
+    <div class="form-check mt-3">
+      <input class="form-check-input" type="checkbox" name="include_battle_hot" id="include_battle_hot">
+      <label class="form-check-label" for="include_battle_hot">连带处理对应的战斗服 + 战斗副本服(一并热更)</label>
+    </div>
+  </div>
+
+  <!-- 目标服选择(发版/热更共用) -->
+  <div id="server-section" class="mt-4" style="display:none">
+    <label class="form-label">目标服(可多选)</label>
+    <div class="srv-picker">
+      <div class="srv-toolbar d-flex flex-wrap align-items-center gap-2">
+        <input class="form-control form-control-sm" style="max-width:240px" id="srv-search" placeholder="搜索 区服名 / ID / 描述...">
+        <span class="badge text-bg-primary srv-count-badge">已选 <span id="srv-count">0</span> 个<span id="srv-assoc"></span></span>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="srv-select-all">全选</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="srv-select-filtered">全选当前结果</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="srv-clear">清空</button>
+        <span class="text-muted small ms-auto" id="srv-total"></span>
+      </div>
+      <div class="srv-body" id="srv-body">
+        <div class="text-muted p-3">加载中...</div>
+      </div>
+    </div>
+  </div>
+
+    </div><!-- /no-card-body 工单内容 -->
+  </div><!-- /no-card -->
+
+  <div class="no-actions">
+    <a class="btn btn-light" href="/orders">取消</a>
+    <button class="btn btn-primary">提交工单</button>
+  </div>
+</form>
+</div><!-- /new-order -->
+
+<script>
+function switchType() {
+  var sel = document.querySelector('input[name="type"]:checked');
+  var t = sel ? sel.value : 'merge';
+  document.querySelectorAll('.type-tile').forEach(function(tile){
+    tile.classList.toggle('on', tile.getAttribute('data-type') === t);
+  });
+  document.querySelectorAll('.type-block').forEach(function(b){ b.style.display='none'; });
+  document.getElementById('block-' + t).style.display = 'block';
+  // 发版/热更需要选服;合服不需要
+  document.getElementById('server-section').style.display = (t === 'merge') ? 'none' : 'block';
+  var hints = { merge: '勾选 合服 / 预合服(至少一项)', release: '填写版本包并在下方选择目标服', hotupdate: '配置热更文件并在下方选择目标服' };
+  var hintEl = document.getElementById('content-hint');
+  if (hintEl) hintEl.textContent = hints[t] || '';
+  defaultSchedFor(t);
+  applyAssocVisibility();
+  updateCount();
+}
+
+// 合服工单(预合服/合服/同时,一视同仁)默认「定时执行 + 下一个 14:30」;其余类型默认立即。提交人仍可改。
+function nextHalfPastTwo() {
+  var d = new Date();
+  d.setHours(14, 30, 0, 0);
+  if (new Date() >= d) d.setDate(d.getDate() + 1); // 已过今天 14:30 → 顺延到明天
+  var p = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+function defaultSchedFor(type) {
+  var nowR = document.querySelector('input[name="sched_mode"][value="now"]');
+  var atR = document.querySelector('input[name="sched_mode"][value="at"]');
+  var t = document.getElementById('sched-time');
+  if (type === 'merge') {
+    if (atR) atR.checked = true;
+    if (t) t.value = nextHalfPastTwo();
+  } else if (nowR) {
+    nowR.checked = true;
+  }
+  switchSched();
+}
+
+var byId = {};          // 服ID -> server
+var copyByBattle = {};  // 战斗服ID -> 对应的战斗副本服(WT=3)
+
+// 计算某游戏服的战斗服ID / 副本服
+function battleOf(s) {
+  if (!s || s.WorldType !== 0) return null;
+  var b = s.BattleWorldID;
+  if (!b || b <= 0) return null;
+  return { battle: b, copy: copyByBattle[b] || null };
+}
+
+function updateCount() {
+  var checked = document.querySelectorAll('#srv-body input[name="server_ids"]:checked');
+  document.getElementById('srv-count').textContent = checked.length;
+  // 已直接勾选的服ID(全选时已含战斗/副本服)
+  var selected = {};
+  checked.forEach(function(cb){ selected[+cb.value] = 1; });
+  // 连带只统计"尚未被直接勾选"的战斗/副本服,避免与已选项重复计数(与后端 ExpandWithBattle 去重一致)
+  var battles = {}, copies = {};
+  checked.forEach(function(cb) {
+    var info = battleOf(byId[+cb.value]);
+    if (info) {
+      if (info.battle && !selected[info.battle]) battles[info.battle] = 1;
+      if (info.copy && !selected[info.copy.ID]) copies[info.copy.ID] = 1;
+    }
+  });
+  var nb = Object.keys(battles).length, nc = Object.keys(copies).length;
+
+  var inc = activeIncludeBattle();
+  var includeOn = inc && inc.checked;
+  var assoc = document.getElementById('srv-assoc');
+  if (includeOn && (nb || nc)) {
+    // 勾了连带才显示:战斗/副本会被一并处理,计入合计
+    assoc.textContent = ' ＋连带 ' + nb + ' 战斗服 / ' + nc + ' 副本服 = 合计 ' +
+      (checked.length + nb + nc) + ' 个';
+  } else {
+    assoc.textContent = '';
+  }
+}
+
+function buildPicker(groups) {
+  var body = document.getElementById('srv-body');
+  body.innerHTML = '';
+  byId = {}; copyByBattle = {};
+  var total = 0;
+
+  // 先建索引:byId + 战斗副本服(WT=3)按 BattleWorldID 归档
+  (groups || []).forEach(function(grp) {
+    (grp.servers || []).forEach(function(s) {
+      byId[s.ID] = s;
+      if (s.WorldType === 3 && s.BattleWorldID > 0 && !copyByBattle[s.BattleWorldID]) {
+        copyByBattle[s.BattleWorldID] = s;
+      }
+    });
+  });
+
+  (groups || []).forEach(function(grp) {
+    var servers = grp.servers || [];
+    total += servers.length;
+    var allBattle = servers.every(function(s){ return s.WorldType !== 0; });
+
+    var sec = document.createElement('div');
+    sec.className = 'srv-group' + (allBattle ? ' collapsed' : ''); // 战斗/副本组默认折叠
+
+    var hd = document.createElement('div');
+    hd.className = 'srv-group-hd';
+    var caret = document.createElement('span');
+    caret.className = 'srv-caret'; caret.textContent = '▼';
+    hd.appendChild(caret);
+    var gToggle = document.createElement('input');
+    gToggle.type = 'checkbox';
+    gToggle.className = 'form-check-input grp-toggle';
+    gToggle.title = '整组全选/全不选';
+    hd.appendChild(gToggle);
+    var gname = document.createElement('span');
+    gname.textContent = grp.group;
+    hd.appendChild(gname);
+    var gbadge = document.createElement('span');
+    gbadge.className = 'badge text-bg-light border';
+    gbadge.textContent = servers.length;
+    hd.appendChild(gbadge);
+    // 点标题折叠/展开(点复选框不触发)
+    hd.addEventListener('click', function(e){ if (e.target !== gToggle) sec.classList.toggle('collapsed'); });
+    sec.appendChild(hd);
+
+    var grid = document.createElement('div');
+    grid.className = 'srv-grid';
+    servers.forEach(function(s) {
+      var cell = document.createElement('div');
+      cell.className = 'srv-cell';
+      cell.dataset.text = (s.ID + ' ' + (s.Desc||'') + ' ' + grp.group).toLowerCase();
+
+      var lab = document.createElement('label');
+      lab.className = 'srv-item';
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'form-check-input';
+      cb.name = 'server_ids';
+      cb.value = s.ID;
+      cb.addEventListener('change', function() {
+        cell.classList.toggle('on', cb.checked);
+        updateCount();
+      });
+      lab.appendChild(cb);
+      var sid = document.createElement('span');
+      sid.className = 'sid'; sid.textContent = s.ID;
+      lab.appendChild(sid);
+      var desc = document.createElement('span');
+      desc.textContent = s.Desc || '';
+      lab.appendChild(desc);
+      cell.appendChild(lab);
+
+      // 关联战斗服/副本服小字(仅普通服且有战斗组时;选中后显示)
+      var info = battleOf(s);
+      if (info) {
+        var sub = document.createElement('div');
+        sub.className = 'srv-sub';
+        var bt = document.createElement('span');
+        bt.className = 'srv-tag b';
+        bt.textContent = '战 ' + info.battle;
+        sub.appendChild(bt);
+        if (info.copy) {
+          var ct = document.createElement('span');
+          ct.className = 'srv-tag c';
+          ct.textContent = '副 ' + info.copy.ID;
+          sub.appendChild(ct);
+        }
+        cell.appendChild(sub);
+      }
+      grid.appendChild(cell);
+    });
+    sec.appendChild(grid);
+
+    gToggle.addEventListener('change', function() {
+      grid.querySelectorAll('.srv-cell').forEach(function(cell) {
+        if (cell.style.display !== 'none') {
+          var cb = cell.querySelector('input');
+          cb.checked = gToggle.checked;
+          cell.classList.toggle('on', gToggle.checked);
+        }
+      });
+      updateCount();
+    });
+
+    body.appendChild(sec);
+  });
+  document.getElementById('srv-total').textContent = '共 ' + (groups||[]).length + ' 组 / ' + total + ' 个服';
+  applyAssocVisibility();
+}
+
+// 取当前可见工单块对应的"连带处理"勾选框(发版用 include_battle,热更用 include_battle_hot)
+function activeIncludeBattle() {
+  var ids = ['include_battle', 'include_battle_hot'];
+  for (var i = 0; i < ids.length; i++) {
+    var cb = document.getElementById(ids[i]);
+    if (cb) {
+      var block = cb.closest('.type-block');
+      if (block && block.style.display !== 'none') return cb;
+    }
+  }
+  return null;
+}
+
+// 选中服底下的"战 xxx / 副 xxx"小字:只有勾了"连带处理"才显示
+function applyAssocVisibility() {
+  var inc = activeIncludeBattle();
+  document.getElementById('srv-body').classList.toggle('show-assoc', !!(inc && inc.checked));
+}
+
+function filterPicker() {
+  var q = document.getElementById('srv-search').value.trim().toLowerCase();
+  document.querySelectorAll('#srv-body .srv-group').forEach(function(sec) {
+    var any = false;
+    sec.querySelectorAll('.srv-cell').forEach(function(cell) {
+      var show = !q || cell.dataset.text.indexOf(q) >= 0;
+      cell.style.display = show ? '' : 'none';
+      if (show) any = true;
+    });
+    sec.style.display = any ? '' : 'none';
+    // 搜索时自动展开匹配到的组
+    if (q && any) sec.classList.remove('collapsed');
+  });
+}
+
+document.getElementById('srv-search').addEventListener('input', filterPicker);
+document.getElementById('srv-clear').addEventListener('click', function() {
+  document.querySelectorAll('#srv-body input[name="server_ids"]').forEach(function(cb){ cb.checked = false; });
+  document.querySelectorAll('#srv-body .grp-toggle').forEach(function(cb){ cb.checked = false; });
+  document.querySelectorAll('#srv-body .srv-cell.on').forEach(function(cell){ cell.classList.remove('on'); });
+  updateCount();
+});
+// 勾/取消"连带处理":控制小字关联信息显隐,并刷新合计数
+(function(){
+  ['include_battle', 'include_battle_hot'].forEach(function(id){
+    var inc = document.getElementById(id);
+    if (inc) inc.addEventListener('change', function(){ applyAssocVisibility(); updateCount(); });
+  });
+})();
+
+// 全选:勾上所有服
+document.getElementById('srv-select-all').addEventListener('click', function() {
+  document.querySelectorAll('#srv-body .srv-cell').forEach(function(cell) {
+    cell.querySelector('input').checked = true;
+    cell.classList.add('on');
+  });
+  document.querySelectorAll('#srv-body .grp-toggle').forEach(function(cb){ cb.checked = true; });
+  updateCount();
+});
+
+// 全选当前结果:只勾当前搜索筛选出来的
+document.getElementById('srv-select-filtered').addEventListener('click', function() {
+  document.querySelectorAll('#srv-body .srv-cell').forEach(function(cell) {
+    if (cell.style.display !== 'none') {
+      cell.querySelector('input').checked = true;
+      cell.classList.add('on');
+    }
+  });
+  updateCount();
+});
+
+fetch('/gameservers').then(function(r){return r.json();})
+  .then(buildPicker)
+  .catch(function(){ document.getElementById('srv-body').innerHTML = '<div class="text-danger p-3">加载服务器列表失败</div>'; });
+
+switchType();
+
+(function(){
+  var h = document.getElementById('include_hotupdate');
+  var ex = document.getElementById('hot-extra');
+  if (h && ex) { h.addEventListener('change', function(){ ex.style.display = h.checked ? '' : 'none'; }); }
+})();
+</script>
+<script>
+function switchMergeSub() {
+  var m = document.getElementById('include_merge');
+  var p = document.getElementById('include_premerge');
+  document.getElementById('card-merge').classList.toggle('on', !!(m && m.checked));
+  document.getElementById('card-premerge').classList.toggle('on', !!(p && p.checked));
+}
+switchMergeSub();
+
+// 合服工具包:勾「自动选择」则隐藏手填框(提交时按被合服版本匹配);取消勾选才显示手填框作覆盖。
+function switchAutoTool() {
+  var auto = document.getElementById('auto_tool_package');
+  var input = document.getElementById('tool_package');
+  if (!auto || !input) return;
+  input.style.display = auto.checked ? 'none' : '';
+  if (auto.checked) input.value = ''; // 切回自动:清掉残留手填值,避免被当成覆盖
+}
+switchAutoTool();
+
+// 按关键字从全部包(pkg-list)派生筛选下拉:合服工具包→dbmerge,配置包→config
+(function(){
+  var src = document.getElementById('pkg-list');
+  if (!src) return;
+  function fill(listId, keyword) {
+    var dst = document.getElementById(listId);
+    if (!dst) return;
+    Array.prototype.forEach.call(src.options, function(o){
+      if (o.value.toLowerCase().indexOf(keyword) >= 0) {
+        var op = document.createElement('option'); op.value = o.value; dst.appendChild(op);
+      }
+    });
+  }
+  fill('pkg-merge', 'dbmerge');
+  fill('pkg-config', 'config');
+})();
+
+// 执行时机:立即 / 定时。立即时禁用并清空时间框(disabled 不提交 => 后端按"立即/手动")
+function switchSched() {
+  var atRadio = document.querySelector('input[name="sched_mode"][value="at"]');
+  var at = !!(atRadio && atRadio.checked);
+  var t = document.getElementById('sched-time');
+  if (!t) return;
+  t.style.display = at ? '' : 'none';
+  t.disabled = !at;
+  t.required = at;
+  if (!at) { t.value = ''; }
+}
+switchSched();
+
+// 点整个日期/时间框即弹出原生选择器(不必精准点右侧小日历图标)
+(function(){
+  document.querySelectorAll('.new-order input[type=date], .new-order input[type=datetime-local]').forEach(function(inp){
+    inp.addEventListener('click', function(){
+      if (typeof inp.showPicker === 'function') { try { inp.showPicker(); } catch(e){} }
+    });
+  });
+})();
+
+// ===== 提交前页内校验:把后端的裸文本错误页提前拦在页面内,给出清晰提示 =====
+(function(){
+  var form = document.getElementById('order-form');
+  var alertBox = document.getElementById('form-alert');
+  var alertText = document.getElementById('form-alert-text');
+  if (!form || !alertBox) return;
+
+  // 配置库全部服号(服务端注入);非空时用于校验手输服号是否真实存在。
+  var validIDs = new Set("{{ .ValidIDsCSV }}".split(',').filter(Boolean));
+
+  function val(name) {
+    var el = form.querySelector('[name="' + name + '"]');
+    return el ? el.value.trim() : '';
+  }
+  function selectedServers() {
+    return document.querySelectorAll('#srv-body input[name="server_ids"]:checked').length;
+  }
+
+  // 热更禁止下发的受管文件(按文件名小写,忽略路径)
+  var HOT_FORBIDDEN_FILES = { 'serverconfiglist.txt': true, 'mergeserverfunction.txt': true };
+  // 校验逗号分隔的热更文件列表:格式 + 受管文件;无错返回 ''
+  function hotFilesError(files) {
+    var items = files.split(',');
+    for (var i = 0; i < items.length; i++) {
+      var f = items[i].trim();
+      if (!f) continue;
+      if (!/^[A-Za-z0-9._/-]+$/.test(f))
+        return '热更文件「' + f + '」含非法字符(仅允许字母数字及 . _ / -)';
+      var base = f.split('/').pop();
+      if (HOT_FORBIDDEN_FILES[base.toLowerCase()])
+        return '热更不允许下发受管文件: ' + base;
+    }
+    return '';
+  }
+
+  // 返回第一个错误信息;无错返回 ''
+  function firstError() {
+    if (!val('title')) return '请填写工单标题';
+
+    var sel = form.querySelector('input[name="type"]:checked');
+    var t = sel ? sel.value : 'merge';
+
+    if (t === 'merge') {
+      var m = document.getElementById('include_merge');
+      var p = document.getElementById('include_premerge');
+      var mOn = m && m.checked, pOn = p && p.checked;
+      if (!mOn && !pOn) return '请至少勾选「合服」或「预合服」其中一项';
+      if (mOn) {
+        if (!val('merge_pairs')) return '已勾选「合服」,请填写合服列表(每行:目标服ID,源服ID)';
+        var pairs = mergePairs();
+        for (var i = 0; i < pairs.length; i++) {
+          if (!/^\d+$/.test(pairs[i].t) || !/^\d+$/.test(pairs[i].s))
+            return '合服列表第 ' + (i + 1) + ' 行应为「目标服ID,源服ID」两个数字';
+          if (pairs[i].t === pairs[i].s)
+            return '合服列表第 ' + (i + 1) + ' 行目标服与源服相同: ' + pairs[i].t;
+          if (validIDs.size && !validIDs.has(pairs[i].t))
+            return '合服列表第 ' + (i + 1) + ' 行目标服 ' + pairs[i].t + ' 不存在';
+          if (validIDs.size && !validIDs.has(pairs[i].s))
+            return '合服列表第 ' + (i + 1) + ' 行源服 ' + pairs[i].s + ' 不存在';
+        }
+        // 勾「自动选择」则提交时按被合服实际版本匹配(见 maybeAutoMatchTool);取消勾选则须手填。
+        if (!chk('auto_tool_package') && !val('tool_package'))
+          return '已勾选「合服」,请填写合服工具包(含 dbmerge),或勾选「自动选择」';
+      }
+      if (pOn) {
+        if (!val('premerge_ids')) return '已勾选「预合服」,请填写预合服服号';
+        var pids = tokens('premerge_ids');
+        for (var j = 0; j < pids.length; j++) {
+          if (!/^\d+$/.test(pids[j])) return '预合服服号含非数字: ' + pids[j];
+          if (validIDs.size && !validIDs.has(pids[j])) return '预合服服号 ' + pids[j] + ' 不存在';
+        }
+        if (!val('premerge_date')) return '已勾选「预合服」,请选择预合服时间';
+      }
+      return '';
+    }
+
+    if (t === 'release') {
+      if (!val('version_package')) return '请填写版本包';
+      if (selectedServers() === 0) return '请至少选择一个目标服';
+      var hot = document.getElementById('include_hotupdate');
+      if (hot && hot.checked) {
+        var scope = form.querySelector('input[name="hot_scope"]:checked');
+        if (!scope) return '已勾选「发版后热更」,请选择热更范围(当前选中服 / 全服)';
+        if (!val('hot_package')) return '已勾选「发版后热更」,请填写热更配置包';
+        if (!val('hot_files')) return '已勾选「发版后热更」,请填写热更文件列表';
+        var hfErr = hotFilesError(val('hot_files'));
+        if (hfErr) return hfErr;
+      }
+      return '';
+    }
+
+    if (t === 'hotupdate') {
+      if (!val('config_package_hot')) return '请填写配置包';
+      if (!val('hot_files_hot')) return '请填写热更文件列表';
+      var hfErr2 = hotFilesError(val('hot_files_hot'));
+      if (hfErr2) return hfErr2;
+      if (selectedServers() === 0) return '请至少选择一个目标服';
+      return '';
+    }
+    return '';
+  }
+
+  function hideAlert() { alertBox.classList.remove('show'); }
+  document.addEventListener('input', hideAlert, true);
+  document.addEventListener('change', hideAlert, true);
+
+  // ===== 关键信息摘要(提交确认窗内容) =====
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
+      return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' })[c];
+    });
+  }
+  function chk(id) { var el = document.getElementById(id); return !!(el && el.checked); }
+  function tokens(name) { // 逗号(中英文)/空格/换行分隔的非空项
+    return val(name).split(/[\s,，]+/).map(function(s){ return s.trim(); }).filter(Boolean);
+  }
+  function mergePairs() { // 每行「目标服,源服」-> {t,s}
+    return val('merge_pairs').split(/\n+/).map(function(s){ return s.trim(); }).filter(Boolean)
+      .map(function(line){ var p = line.split(',').map(function(x){ return x.trim(); }); return { t: p[0]||'', s: p[1]||'' }; });
+  }
+  function selectedServerIds() {
+    return Array.prototype.map.call(
+      document.querySelectorAll('#srv-body input[name="server_ids"]:checked'),
+      function(cb){ return cb.value; });
+  }
+  function row(k, vHtml) {
+    return '<div class="oc-row"><span class="k">' + esc(k) + '</span><span class="v">' + vHtml + '</span></div>';
+  }
+  function pkgVal(name) { var v = val(name); return v ? esc(v) : '<span class="oc-warn">未填</span>'; }
+  function textVal(name) { var v = val(name); return v ? esc(v) : '<span class="oc-warn">未填</span>'; }
+  // 列表块:itemsHtml 平铺显示;超过 30 项折叠(默认收起),过长有滚动。
+  function foldList(itemsHtml, count, unit, sep) {
+    if (!count) return '';
+    var inner = '<div class="ids">' + itemsHtml.join(sep) + '</div>';
+    if (count > 30) {
+      return '<details class="oc-srv"><summary>查看全部 ' + count + ' ' + unit + '</summary>' + inner + '</details>';
+    }
+    return inner;
+  }
+  function serversGroup() {
+    var ids = selectedServerIds();
+    var html = '<div class="oc-grp"><div class="oc-grp-t">目标服</div>';
+    html += row('已选', ids.length ? ('<b>' + ids.length + '</b> 个')
+                                   : '<span class="oc-warn">未选(0 个)</span>');
+    html += foldList(ids.map(esc), ids.length, '个服号', ', ');
+    return html + '</div>';
+  }
+  function buildSummary() {
+    var sel = form.querySelector('input[name="type"]:checked');
+    var t = sel ? sel.value : 'merge';
+    var typeCN = { merge: '合服', release: '发版', hotupdate: '热更' }[t] || t;
+    var atRadio = form.querySelector('input[name="sched_mode"][value="at"]');
+    var at = !!(atRadio && atRadio.checked);
+    var whenHtml = at
+      ? '<span class="oc-when at">定时:' + esc(val('scheduled_time').replace('T', ' ') || '未设时间') + '</span>'
+      : '<span class="oc-when">审批后立即执行</span>';
+    var html = '<div class="oc-sum"><div class="oc-hd">'
+      + '<span class="oc-badge">' + esc(typeCN) + '</span>'
+      + '<span class="oc-title">' + esc(val('title')) + '</span>'
+      + whenHtml + '</div>';
+
+    if (t === 'merge') {
+      if (chk('include_merge')) {
+        var pairs = mergePairs();
+        var pairItems = pairs.map(function(p){ return '目标 ' + esc(p.t) + ' ← 源 ' + esc(p.s); });
+        html += '<div class="oc-grp"><div class="oc-grp-t"><span class="oc-warn">合服(停服合库)</span></div>'
+          + row('合服对', '<b>' + pairs.length + '</b> 对 <span class="oc-hint">(源服合并进目标服)</span>')
+          + foldList(pairItems, pairs.length, '对', '<br>')
+          + row('工具包', pkgVal('tool_package') + (autoMatched
+              ? ' <span class="oc-hint">(自动匹配 · 服 ' + esc(autoMatched.server) + ' · 版本 ' + esc(autoMatched.version) + ')</span>'
+              : '')) + '</div>';
+      }
+      if (chk('include_premerge')) {
+        var pre = tokens('premerge_ids');
+        html += '<div class="oc-grp"><div class="oc-grp-t">预合服(改配置)</div>'
+          + row('服号', '<b>' + pre.length + '</b> 个')
+          + foldList(pre.map(esc), pre.length, '个服号', ', ')
+          + row('预告日期', val('premerge_date') ? esc(val('premerge_date')) : '<span class="oc-warn">未设</span>')
+          + '</div>';
+      }
+    } else if (t === 'release') {
+      var rg = '<div class="oc-grp"><div class="oc-grp-t">发版</div>'
+        + row('版本包', pkgVal('version_package'))
+        + row('连带战斗服', chk('include_battle') ? '是' : '否');
+      if (chk('include_hotupdate')) {
+        var scopeSel = form.querySelector('input[name="hot_scope"]:checked');
+        var scope = scopeSel ? scopeSel.value : '';
+        var scopeHtml = scope === 'all' ? '<span class="oc-warn">全服</span>'
+                      : (scope === 'selected' ? '当前选中服' : '<span class="oc-warn">未选</span>');
+        rg += row('发版后热更', '是')
+            + row('热更包', pkgVal('hot_package'))
+            + row('热更文件', textVal('hot_files'))
+            + row('热更范围', scopeHtml);
+      } else {
+        rg += row('发版后热更', '否');
+      }
+      // 目标服(区服ID)是工单核心对象,排在类型详情前面
+      html += serversGroup() + rg + '</div>';
+    } else if (t === 'hotupdate') {
+      html += serversGroup()
+        + '<div class="oc-grp"><div class="oc-grp-t">热更</div>'
+        + row('配置包', pkgVal('config_package_hot'))
+        + row('热更文件', textVal('hot_files_hot'))
+        + row('连带战斗服', chk('include_battle_hot') ? '是' : '否')
+        + '</div>';
+    }
+    return html + '</div>';
+  }
+
+  // 自动匹配到的合服工具包信息(展示用);每次提交重新计算。
+  var autoMatched = null;
+  function showSubmitAlert(msg){
+    alertText.innerHTML = '<b>无法提交工单:</b>' + msg;
+    alertBox.classList.add('show');
+    alertBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  // 合服且未手填工具包时,据合服列表第一个目标服的实际包版本自动匹配工具包。
+  // 返回 Promise<errMsg>:'' 表示就绪(已填好 tool_package),非空表示失败需阻止提交。
+  function maybeAutoMatchTool(){
+    autoMatched = null;
+    var sel = form.querySelector('input[name="type"]:checked');
+    var t = sel ? sel.value : 'merge';
+    if (t !== 'merge' || !chk('include_merge')) return Promise.resolve('');
+    if (!chk('auto_tool_package')) return Promise.resolve(''); // 取消自动:用手填值,跳过匹配
+    var pairs = mergePairs();
+    if (!pairs.length || !pairs[0].t) return Promise.resolve(''); // firstError 已挡,保险
+    var body = new URLSearchParams(); body.set('id', pairs[0].t);
+    return fetch('/orders/match-tool', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString()
+    }).then(function(r){
+      return r.json().catch(function(){ return { error: '自动匹配接口返回异常' }; });
+    }).then(function(d){
+      if (!d || d.error) return (d && d.error) || '自动匹配工具包失败';
+      var input = form.querySelector('[name="tool_package"]');
+      if (input) input.value = d.tool;
+      autoMatched = { tool: d.tool, server: d.server, version: d.version };
+      return '';
+    }).catch(function(err){
+      return '自动匹配工具包失败: ' + ((err && err.message) || err);
+    });
+  }
+
+  form.addEventListener('submit', function(e){
+    var msg = firstError();
+    if (msg) {
+      e.preventDefault();
+      showSubmitAlert(msg);
+      return;
+    }
+    // 校验通过 -> (合服未填工具包则先自动匹配) -> 弹关键信息确认窗;
+    // 确认后 form.submit() 真正提交(不再触发本监听器)。
+    e.preventDefault();
+    var btn = form.querySelector('button[type="submit"], input[type="submit"]');
+    if (btn) btn.disabled = true;
+    maybeAutoMatchTool().then(function(matchErr){
+      if (btn) btn.disabled = false;
+      if (matchErr) { showSubmitAlert(matchErr); return; }
+      window.uiConfirm({
+        title: '确认提交工单', wide: true, danger: true,
+        okText: '确认提交', html: buildSummary()
+      }).then(function(ok){ if (ok) form.submit(); });
+    });
+  });
+})();
+</script>
+{{ template "foot" . }}

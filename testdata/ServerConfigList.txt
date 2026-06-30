@@ -1,0 +1,7 @@
+Id	Desc	WorldName	ServerShowName	WorldType	BigWorldID	RealWorldID	BattleWorldID	GlobalCenterWorldID	SelfPublicIp	Port
+INT	STRING	STRING	STRING	INT	INT	INT	INT	INT	STRING	INT
+config	-	-	-	-	-	-	-	-	-	-
+#ID	描述	世界名	-	-	-	-	-	-	内网IP	端口
+210	210区-推荐服	World210	-	0	-1	210	-1	-1	192.168.10.163	3341
+211	211区	World211	-	0	-1	211	-1	-1	192.168.10.163	3441
+212	212区	World212	-	0	-1	212	-1	-1	192.168.10.163	3541

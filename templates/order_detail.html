@@ -1,0 +1,840 @@
+{{ template "head" . }}
+<style>
+  .wo-page { width: 100%; max-width: none; }
+  .wo-back {
+    display: inline-flex; align-items: center; gap: .35rem;
+    color: #5b6573; text-decoration: none; font-size: .84rem; margin-bottom: .65rem;
+  }
+  .wo-back:hover { color: #2563eb; }
+
+  .wo-card {
+    border: 1px solid #e8ebf1;
+    border-radius: .95rem;
+    box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.05);
+  }
+  .wo-card > .card-header {
+    display: flex; align-items: center; justify-content: space-between; gap: .8rem;
+    background: #fff;
+    border-bottom: 1px solid #eef1f5;
+    padding: .72rem .95rem;
+    font-weight: 600;
+    font-size: .9rem;
+    color: #1f2937;
+  }
+
+  .wo-hero {
+    border-color: #dfe6ef;
+    background:
+      radial-gradient(circle at top right, rgba(59,130,246,.12), transparent 28%),
+      linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  }
+  .wo-hero .card-body { padding: .95rem 1rem .9rem; }
+  .wo-order-main { min-width: 0; }
+  .wo-order-row {
+    display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+    margin-bottom: .2rem;
+  }
+  .wo-order-no {
+    margin: 0;
+    font-size: 2.75rem;
+    line-height: 1.1;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    color: #111827;
+    font-variant-numeric: tabular-nums;
+  }
+  .wo-order-title {
+    color: #5b6573;
+    font-size: .9rem;
+    line-height: 1.35;
+    max-width: 900px;
+    margin-bottom: .55rem;
+  }
+  .wo-keyfacts {
+    display: grid;
+    grid-template-columns: 2.2fr repeat(5, minmax(0, 1fr));
+    gap: .45rem;
+    margin-bottom: .7rem;
+  }
+  .wo-keyfact {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    padding: .55rem .7rem;
+    border: 1px solid #e8edf4;
+    border-radius: .75rem;
+    background: rgba(255,255,255,.82);
+    transition: border-color .14s, box-shadow .14s;
+  }
+  .wo-keyfact:hover { border-color: #d4ddec; box-shadow: 0 2px 6px rgba(16,24,40,.05); }
+  .wo-kf-ic {
+    width: 30px; height: 30px; flex: none;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    background: #f1f5f9; color: #64748b;
+  }
+  .wo-kf-ic svg { width: 16px; height: 16px; }
+  .wo-kf-body { min-width: 0; }
+  .wo-keyfact[data-role=target]  .wo-kf-ic { background: #eef4ff; color: #2563eb; }
+  .wo-keyfact[data-role=plan]    .wo-kf-ic { background: #eef2ff; color: #4f46e5; }
+  .wo-keyfact[data-role=approve] .wo-kf-ic { background: #fff7ed; color: #c2410c; }
+  .wo-keyfact[data-role=execute] .wo-kf-ic { background: #ecfdf3; color: #15803d; }
+  .wo-keyfact[data-role=test]    .wo-kf-ic { background: #effbfa; color: #0e7490; }
+  .wo-keyfact[data-role=submit]  .wo-kf-ic { background: #f1f5f9; color: #475569; }
+  .wo-keyfact .k {
+    color: #8a93a0;
+    font-size: .72rem;
+    margin-bottom: .18rem;
+  }
+  .wo-keyfact .v {
+    color: #1f2937;
+    font-size: .86rem;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+  .wo-keyfact .v.muted { color: #98a2b3; }
+  .wo-keyfact.main .wo-kf-ic { width: 34px; height: 34px; }
+  .wo-keyfact.main .wo-kf-ic svg { width: 18px; height: 18px; }
+  .wo-keyfact.main .v {
+    font-size: .92rem;
+    font-weight: 600;
+  }
+
+  .wo-steps { display: flex; align-items: center; }
+  .wo-step { display: flex; align-items: center; flex: 1; gap: .42rem; color: #9aa1ab; font-size: .8rem; min-width: 0; }
+  .wo-step:last-child { flex: 0 0 auto; }
+  .wo-step .dot {
+    width: 20px; height: 20px; flex: none; border-radius: 50%;
+    background: #e5e7eb; color: #fff; display: flex; align-items: center; justify-content: center;
+    font-size: .68rem; font-weight: 700;
+  }
+  .wo-step .lbl { white-space: nowrap; }
+  .wo-step::after {
+    content: ""; flex: 1; height: 2px; background: #e5e7eb; margin: 0 .45rem;
+    border-radius: 999px;
+  }
+  .wo-step:last-child::after { display: none; }
+  .wo-step.done { color: #16a34a; }
+  .wo-step.done .dot { background: #16a34a; }
+  .wo-step.done::after { background: #16a34a; }
+  .wo-step.active { color: #2563eb; font-weight: 600; }
+  .wo-step.active .dot { background: #2563eb; box-shadow: 0 0 0 4px rgba(37,99,235,.14); }
+
+  .wo-param-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .55rem;
+  }
+  .wo-overview-item,
+  .wo-param-item {
+    min-width: 0;
+    padding: .7rem .8rem;
+    border: 1px solid #edf1f5;
+    border-radius: .72rem;
+    background: #fbfcfe;
+  }
+  .wo-overview-item {
+    min-height: 0;
+  }
+  .wo-overview-item .k,
+  .wo-param-item .k {
+    color: #8a93a0;
+    font-size: .72rem;
+    margin-bottom: .25rem;
+  }
+  .wo-overview-item .v,
+  .wo-param-item .v {
+    color: #1f2937;
+    font-size: .88rem;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+  .wo-overview-item .v.muted,
+  .wo-param-item .v.muted { color: #98a2b3; }
+  .wo-overview-item .v strong { font-weight: 600; }
+
+  .wo-param-item.full { grid-column: 1 / -1; }
+  .wo-param-item .badge { border-radius: 999px; padding: .22em .6em; font-weight: 600; font-size: .74rem; }
+  .wo-param-item details,
+  .wo-raw details { margin-top: .45rem; }
+  .wo-param-item summary,
+  .wo-raw summary {
+    color: #2563eb;
+    font-size: .82rem;
+    cursor: pointer;
+    list-style: none;
+  }
+  .wo-param-item summary::-webkit-details-marker,
+  .wo-raw summary::-webkit-details-marker { display: none; }
+  .wo-param-fold {
+    margin-top: .3rem;
+    color: #5b6573;
+    font-size: .82rem;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+  .wo-raw {
+    margin-top: .75rem;
+    padding-top: .75rem;
+    border-top: 1px dashed #e5e7eb;
+  }
+  .wo-raw pre,
+  .wo-json-only pre {
+    margin: .45rem 0 0;
+    padding: .7rem .8rem;
+    border-radius: .72rem;
+    background: #f8fafc;
+    border: 1px solid #e8edf3;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: #334155;
+    font-size: .78rem;
+    line-height: 1.45;
+  }
+  .wo-json-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .55rem;
+    margin-bottom: .7rem;
+  }
+  .wo-json-summary:empty { display: none; }
+  .wo-json-summary .wo-overview-item { min-height: 0; }
+  .wo-json-only details { margin-top: .2rem; }
+  .wo-json-only summary {
+    color: #2563eb;
+    font-size: .82rem;
+    cursor: pointer;
+    list-style: none;
+  }
+  .wo-json-only summary::-webkit-details-marker { display: none; }
+
+  .wo-alert {
+    border: 1px solid #f3d18b;
+    border-radius: .72rem;
+    background: #fff9ed;
+    color: #8a5a00;
+    padding: .65rem .8rem;
+    margin-top: .75rem;
+    font-size: .84rem;
+    line-height: 1.4;
+  }
+
+  .wo-actions-form .form-control {
+    border-radius: .65rem;
+    min-height: 36px;
+  }
+  .wo-actions-list {
+    display: flex;
+    gap: .65rem;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .wo-actions-list .btn { min-width: 108px; }
+  .wo-actions-note {
+    margin-top: .45rem;
+    color: #7a8aa1;
+    font-size: .78rem;
+    line-height: 1.45;
+  }
+  .wo-rollback {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px dashed #e5e7eb;
+  }
+  .wo-rollback-note {
+    color: #8a93a0;
+    font-size: .8rem;
+    margin-bottom: .5rem;
+  }
+
+  .wo-main-section > .wo-card,
+  .wo-log-section > .wo-card,
+  .wo-main-section > .wo-alert { margin-top: .75rem; }
+  .wo-main-section > :first-child,
+  .wo-log-section > :first-child { margin-top: 0; }
+
+  .wo-loghead {
+    display: flex; align-items: center; gap: .55rem;
+    color: #111827;
+  }
+  .wo-loghead .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: #98a2b3;
+  }
+  .wo-loghead .dot.run {
+    background: #22c55e;
+    box-shadow: 0 0 0 4px rgba(34,197,94,.15);
+  }
+  .wo-logmeta {
+    color: #8a93a0;
+    font-size: .8rem;
+    font-weight: 500;
+  }
+  .wo-log-card > .card-header {
+    justify-content: flex-start;
+    gap: .75rem;
+  }
+  .wo-logtools {
+    display: inline-flex;
+    align-items: center;
+    gap: .55rem;
+  }
+  .wo-log-toggle {
+    border: 1px solid #d7deea;
+    background: #fff;
+    color: #475467;
+    border-radius: 999px;
+    font-size: .76rem;
+    font-weight: 600;
+    line-height: 1;
+    padding: .28rem .62rem;
+    cursor: pointer;
+  }
+  .wo-log-toggle:hover { border-color: #b6cffb; color: #2563eb; background: #f5f8ff; }
+  .wo-log-body { display: none; }
+  .wo-log-card.open .wo-log-body { display: block; }
+  #logbox {
+    height: min(28vh, 210px);
+    min-height: 170px;
+    overflow-y: auto;
+    padding: .75rem .85rem;
+    border-radius: 0 0 .95rem .95rem;
+    background: linear-gradient(180deg, #0f172a 0%, #111c34 100%);
+    color: #dbe4f3;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: .78rem;
+    line-height: 1.45;
+    /* 隔离滚动重排,避免日志多时拖累整页;关闭滚动锚定/链式滚动减少卡顿 */
+    contain: content;
+    overflow-anchor: none;
+    overscroll-behavior: contain;
+  }
+  #logbox.is-empty {
+    height: 120px;
+    min-height: 120px;
+  }
+  #logbox.is-empty::before {
+    content: "暂无日志";
+    color: #8fa0bf;
+    font-size: .84rem;
+  }
+  #logbox pre { margin: 0; color: inherit; white-space: pre-wrap; word-break: break-word; }
+
+  /* 日志放大:全屏覆盖层 */
+  .wo-logfs-overlay { position: fixed; inset: 0; z-index: 1080; display: flex; flex-direction: column;
+    padding: 14px 16px 16px; background: rgba(7, 11, 20, .94); backdrop-filter: blur(2px); }
+  .wo-logfs-overlay[hidden] { display: none; }
+  .wo-logfs-bar { display: flex; align-items: center; justify-content: space-between;
+    color: #dbe4f3; font-size: .9rem; font-weight: 600; padding: .1rem .2rem .7rem; }
+  .wo-logfs-host { flex: 1 1 auto; min-height: 0; display: flex; }
+  .wo-logfs-host > #logbox { height: auto; min-height: 0; flex: 1 1 auto; border-radius: .7rem;
+    font-size: .82rem; }
+  body.logfs-lock { overflow: hidden; }
+  .wo-log-zoom { margin-left: .15rem; }
+
+  @media (max-width: 1199px) {
+    .wo-order-no { font-size: 2.3rem; }
+    .wo-keyfacts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .wo-keyfact.main { grid-column: 1 / -1; }
+    .wo-param-grid,
+    .wo-json-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .wo-steps { overflow-x: auto; padding-bottom: .15rem; }
+    .wo-step { min-width: 118px; }
+  }
+
+  @media (max-width: 991px) {
+    .wo-keyfacts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .wo-keyfact.main { grid-column: 1 / -1; }
+    #logbox { height: 220px; min-height: 220px; }
+  }
+
+  @media (max-width: 767px) {
+    .wo-page { width: 100%; max-width: none; }
+    .wo-card > .card-header { padding: .85rem .95rem; }
+    .wo-hero .card-body { padding: 1rem; }
+    .wo-order-no { font-size: 1.9rem; }
+    .wo-keyfacts,
+    .wo-param-grid,
+    .wo-json-summary { grid-template-columns: 1fr; }
+    .wo-overview-item,
+    .wo-param-item { padding: .85rem .9rem; }
+    .wo-actions-list .btn { flex: 1 1 calc(50% - .65rem); min-width: 0; }
+  }
+</style>
+
+<div class="wo-page">
+  <a href="/orders" class="wo-back">← 返回列表</a>
+
+  <div class="card wo-card wo-hero mb-3">
+    <div class="card-body">
+      <div class="wo-order-main">
+        <div class="wo-order-row">
+          <h3 class="wo-order-no">{{ .O.OrderNo }}</h3>
+          {{ with typeBadge .O.Type }}<span class="badge {{ .Class }}">{{ with .Icon }}<svg class="badge-ic"><use href="#{{ . }}"/></svg> {{ end }}{{ .Label }}</span>{{ end }}
+          <span class="badge {{ statusClass .O.Status }}">{{ statusCN .O.Status }}</span>
+        </div>
+        {{ if .O.Title }}<div class="wo-order-title">{{ .O.Title }}</div>{{ end }}
+
+        <div class="wo-keyfacts">
+          <div class="wo-keyfact main" data-role="target">
+            <span class="wo-kf-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg></span>
+            <div class="wo-kf-body">
+              <div class="k">目标摘要</div>
+              <div class="v {{ if not .TargetSummary }}muted{{ end }}">{{ if .TargetSummary }}{{ .TargetSummary }}{{ else }}—{{ end }}</div>
+            </div>
+          </div>
+          <div class="wo-keyfact" data-role="plan">
+            <span class="wo-kf-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg></span>
+            <div class="wo-kf-body">
+              <div class="k">计划执行</div>
+              <div class="v">{{ if .O.ScheduledTime }}{{ .O.ScheduledTime.Format "2006-01-02 15:04" }}{{ else }}立即 / 手动{{ end }}</div>
+            </div>
+          </div>
+          <div class="wo-keyfact" data-role="approve">
+            <span class="wo-kf-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><polyline points="9 12 11.5 14.5 15.5 10"/></svg></span>
+            <div class="wo-kf-body">
+              <div class="k">审批人</div>
+              <div class="v {{ if not .O.ApproveBy }}muted{{ end }}">{{ if .O.ApproveBy }}{{ .O.ApproveBy }}{{ else }}未审批{{ end }}</div>
+            </div>
+          </div>
+          <div class="wo-keyfact" data-role="execute">
+            <span class="wo-kf-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="7 5 19 12 7 19 7 5"/></svg></span>
+            <div class="wo-kf-body">
+              <div class="k">执行人</div>
+              <div class="v {{ if not .O.ExecuteBy }}muted{{ end }}">{{ if .O.ExecuteBy }}{{ .O.ExecuteBy }}{{ else }}待执行{{ end }}</div>
+            </div>
+          </div>
+          <div class="wo-keyfact" data-role="test">
+            <span class="wo-kf-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6l-4.5 8.5A2 2 0 0 0 7.3 21h9.4a2 2 0 0 0 1.8-3L14 9V3"/><path d="M7.5 15h9"/></svg></span>
+            <div class="wo-kf-body">
+              <div class="k">测试人</div>
+              <div class="v {{ if not .O.TestBy }}muted{{ end }}">{{ if .O.TestBy }}{{ .O.TestBy }}{{ else }}未测试{{ end }}</div>
+            </div>
+          </div>
+          <div class="wo-keyfact" data-role="submit">
+            <span class="wo-kf-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/></svg></span>
+            <div class="wo-kf-body">
+              <div class="k">提交信息</div>
+              <div class="v">{{ .O.CreateBy }} · {{ .O.CreateTime.Format "2006-01-02 15:04" }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {{ $cur := statusStep .O.Status }}
+      {{ if ge $cur 0 }}
+      <div class="wo-steps">
+        {{ range $i, $s := mainStages }}
+        <div class="wo-step {{ if lt $i $cur }}done{{ else if eq $i $cur }}active{{ end }}">
+          <span class="dot">{{ if lt $i $cur }}✓{{ else }}{{ add1 $i }}{{ end }}</span>
+          <span class="lbl">{{ $s.Label }}</span>
+        </div>
+        {{ end }}
+      </div>
+      {{ end }}
+    </div>
+  </div>
+
+  {{ if or (eq .O.Type "configpush") (eq .O.Type "mergepublish") }}
+  <div class="card wo-card mb-3">
+    <div class="card-header">
+      <span>配置变更预览</span>
+      <span id="cfg-summary" class="wo-logmeta"></span>
+    </div>
+    <div id="cfg-stale" class="alert alert-warning m-3 mb-0 d-none">
+      线上已变化，此 diff 基于最新线上；建单基准已过期，建议重新发起。
+    </div>
+    <div id="cfg-grid" style="width:100%;height:480px;overflow:hidden"></div>
+  </div>
+  <link href="/static/handsontable.full.min.css" rel="stylesheet">
+  <script src="/static/handsontable.full.min.js"></script>
+  <script>
+  fetch('/orders/{{ .O.ID }}/config').then(function(r){return r.json();}).then(function(d){
+    if(d.error){document.getElementById('cfg-summary').textContent=d.error;return;}
+    if(d.baselineStale){document.getElementById('cfg-stale').classList.remove('d-none');}
+    var changed={}; (d.changed||[]).forEach(function(ch){changed[ch.key+' '+ch.col]=1;});
+    var added={}; (d.added||[]).forEach(function(k){added[k]=1;});
+    document.getElementById('cfg-summary').textContent =
+      '修改 '+((d.changed||[]).length)+' 处，新增 '+((d.added||[]).length)+' 行，删除 '+((d.removed||[]).length)+' 行';
+    var cols=d.columns||[]; var rows=d.rows||[];
+    var data=rows.map(function(r){return cols.map(function(c){return r[c]||'';});});
+    new Handsontable(document.getElementById('cfg-grid'),{
+      data:data, colHeaders:cols, rowHeaders:true, readOnly:true,
+      licenseKey:'non-commercial-and-evaluation', width:'100%', height:480, stretchH:'all',
+      cells:function(row,col){
+        var rowObj=rows[row]; if(!rowObj) return {};
+        var key=rowObj[d.keyCol]; var colName=cols[col]; var cp={};
+        if(added[key]){cp.renderer=function(i,td){Handsontable.renderers.TextRenderer.apply(this,arguments);td.style.background='#d1f7d1';};}
+        else if(changed[key+' '+colName]){cp.renderer=function(i,td){Handsontable.renderers.TextRenderer.apply(this,arguments);td.style.background='#fff3bf';};}
+        return cp;
+      }
+    });
+  });
+  </script>
+  {{ end }}
+
+  {{ $showRollback := and (or (eq .O.Type "configpush") (eq .O.Type "mergepublish")) (eq .O.Status "opened") .IsAdmin }}
+  <div class="wo-main-section">
+      <div class="card wo-card">
+        <div class="card-header">参数详情</div>
+        <div class="card-body">
+          {{ if .Details }}
+          <div class="wo-param-grid">
+            {{ range .Details }}
+            <div class="wo-param-item {{ if .Fold }}full{{ end }}">
+              <div class="k">{{ .Label }}</div>
+              <div class="v {{ if not .Value }}muted{{ end }}">
+                {{ if eq .Highlight "yes" }}<span class="badge bg-success">是</span>
+                {{ else if eq .Highlight "no" }}<span class="badge bg-secondary">否</span>
+                {{ else if .Value }}{{ .Value }}
+                {{ else }}—{{ end }}
+              </div>
+              {{ if .Fold }}
+              <details>
+                <summary>展开完整列表</summary>
+                <div class="wo-param-fold">{{ .Fold }}</div>
+              </details>
+              {{ end }}
+            </div>
+            {{ end }}
+          </div>
+
+          <div class="wo-raw">
+            <details>
+              <summary>查看原始 JSON</summary>
+              <pre>{{ .O.Params }}</pre>
+            </details>
+          </div>
+          {{ else }}
+          <div class="wo-json-only" data-json-fallback>
+            <div class="text-muted small mb-3">当前工单没有可解析的友好参数，已自动尝试提炼一层摘要。</div>
+            <div class="wo-json-summary"></div>
+            <details>
+              <summary>查看原始 JSON</summary>
+              <pre>{{ .O.Params }}</pre>
+            </details>
+          </div>
+          {{ end }}
+        </div>
+      </div>
+
+      {{ if .RetryFailedIDs }}
+      <div class="wo-alert">
+        上次失败 {{ len .RetryFailedIDs }} 台，「重试执行」将只重发这些服：
+        {{ range $i, $id := .RetryFailedIDs }}{{ if $i }}, {{ end }}{{ $id }}{{ end }}
+      </div>
+      {{ end }}
+
+      {{ if or .Buttons $showRollback }}
+      <div class="card wo-card">
+        <div class="card-header">操作</div>
+        <div class="card-body">
+          {{ if .Buttons }}
+          <form method="post" action="/orders/{{ .O.ID }}/act" class="wo-actions-form">
+            <input class="form-control mb-3" name="remark" placeholder="备注（可选）">
+            <div class="wo-actions-list">
+              {{ range .Buttons }}
+              {{ if eq .Action "approve" }}
+              <button class="btn btn-success" type="button" id="btn-approve">审批</button>
+              {{ else if eq .Action "reject" }}{{/* 驳回并入审批弹窗,不单独成按钮 */}}
+              {{ else if eq .Action "teardown" }}
+              <button class="btn {{ .Class }}" type="button"
+                      onclick="uiConfirm({title:'回滚清理',message:'将拆除本单创建的所有服(停服/丢库/删包/拆ALB/删配置)并作废工单,确认?',okText:'回滚清理',danger:true}).then(function(ok){if(ok){var f=this.closest('form');var i=document.createElement('input');i.type='hidden';i.name='action';i.value='teardown';f.appendChild(i);f.submit();}}.bind(this));">{{ .Label }}</button>
+              {{ else }}
+              <button class="btn {{ .Class }}" name="action" value="{{ .Action }}">{{ .Label }}</button>
+              {{ end }}
+              {{ end }}
+            </div>
+            <div class="wo-actions-note">审批建议：点「审批」核对关键信息后再决定通过 / 驳回。</div>
+          </form>
+
+          <!-- 审批弹窗的关键信息(隐藏块,由「审批」按钮读取注入 uiConfirm) -->
+          <div id="approve-keyinfo" style="display:none">
+            <div class="oc-sum">
+              <div class="oc-hd">
+                <span class="oc-badge">{{ typeCN .O.Type }}</span>
+                <span class="oc-title">{{ .O.OrderNo }} · {{ .O.Title }}</span>
+                {{ if .O.ScheduledTime }}<span class="oc-when at">定时：{{ .O.ScheduledTime.Format "2006-01-02 15:04" }}</span>{{ else }}<span class="oc-when">审批后立即执行</span>{{ end }}
+              </div>
+              <div class="oc-grp">
+                <div class="oc-row"><span class="k">提交人</span><span class="v">{{ .O.CreateBy }}</span></div>
+                <div class="oc-row"><span class="k">提交时间</span><span class="v">{{ .O.CreateTime.Format "2006-01-02 15:04" }}</span></div>
+              </div>
+              {{ if .Details }}
+              <div class="oc-grp">
+                <div class="oc-grp-t">关键参数</div>
+                {{ range .Details }}<div class="oc-row"><span class="k">{{ .Label }}</span><span class="v">{{ if eq .Highlight "yes" }}是{{ else if eq .Highlight "no" }}否{{ else if .Value }}{{ .Value }}{{ else }}—{{ end }}</span></div>{{ end }}
+              </div>
+              {{ else if .IsConfigOrder }}
+              <div class="oc-grp" id="cfg-keyinfo"><span class="oc-hint">点「审批」加载变更摘要…</span></div>
+              {{ else }}
+              <div class="oc-grp"><span class="oc-hint">该工单暂无可解析参数，请进详情页核对。</span></div>
+              {{ end }}
+            </div>
+          </div>
+          <script>
+          (function(){
+            // 防止在「备注」框按回车触发表单隐式提交:审批态没有提交按钮会变成空 action 报错,
+            // 执行/测试态则会误触发第一个动作。所有动作一律走按钮点击。
+            var remark = document.querySelector('.wo-actions-form input[name="remark"]');
+            if (remark) remark.addEventListener('keydown', function(e){
+              if (e.key === 'Enter') e.preventDefault();
+            });
+
+            var btn = document.getElementById('btn-approve');
+            if (!btn) return;
+            var IS_CONFIG = {{ if .IsConfigOrder }}true{{ else }}false{{ end }};
+            function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c];}); }
+            function idsLine(arr){
+              if (!arr.length) return '—';
+              var show = arr.slice(0,20).join('、');
+              return arr.length>20 ? show+' … 等 '+arr.length+' 个' : show;
+            }
+            function buildDiffHtml(d){
+              var changed = d.changed||[], added = d.added||[], removed = d.removed||[];
+              var chKeys = {}; changed.forEach(function(c){ chKeys[c.key]=1; });
+              var chRows = Object.keys(chKeys);
+              var affected = chRows.concat(added, removed);
+              var h = '<div class="oc-grp"><div class="oc-grp-t">变更摘要</div>'
+                + '<div class="oc-row"><span class="k">修改</span><span class="v">'+chRows.length+' 行（'+changed.length+' 处单元格）</span></div>'
+                + '<div class="oc-row"><span class="k">新增</span><span class="v">'+added.length+' 行</span></div>'
+                + '<div class="oc-row"><span class="k">删除</span><span class="v">'+removed.length+' 行</span></div>'
+                + '<div class="oc-row"><span class="k">受影响服号</span><span class="v">'+esc(idsLine(affected))+'</span></div>'
+                + '</div>';
+              if (d.baselineStale) h += '<div class="oc-grp"><span class="oc-warn">⚠ 线上已变化、基准已过期，通过前请复核完整 diff</span></div>';
+              h += '<div class="oc-grp"><span class="oc-hint">完整 diff 见下方「参数详情」只读表格</span></div>';
+              return h;
+            }
+            function openApprove(){
+              var ki = document.getElementById('approve-keyinfo');
+              uiConfirm({
+                title: '审批工单', wide: true,
+                html: ki ? ki.innerHTML : '',
+                buttons: [{ label: '通过', value: 'approve' }, { label: '驳回', value: 'reject', danger: true }],
+                cancelText: '取消'
+              }).then(function(v){
+                if (v !== 'approve' && v !== 'reject') return;
+                var f = btn.closest('form');
+                var i = document.createElement('input');
+                i.type = 'hidden'; i.name = 'action'; i.value = v;
+                f.appendChild(i); f.submit();
+              });
+            }
+            btn.addEventListener('click', function(){
+              if (IS_CONFIG) {
+                var slot = document.getElementById('cfg-keyinfo');
+                if (slot) slot.innerHTML = '<span class="oc-hint">正在加载变更摘要…</span>';
+                btn.disabled = true;
+                fetch('/orders/{{ .O.ID }}/config').then(function(r){ return r.json(); }).then(function(d){
+                  btn.disabled = false;
+                  if (slot) slot.innerHTML = (d && d.error) ? '<span class="oc-warn">拉取变更失败：'+esc(d.error)+'</span>' : buildDiffHtml(d);
+                  openApprove();
+                }).catch(function(e){
+                  btn.disabled = false;
+                  if (slot) slot.innerHTML = '<span class="oc-warn">拉取变更失败：'+esc(e.message)+'，请进详情页核对</span>';
+                  openApprove();
+                });
+                return;
+              }
+              openApprove();
+            });
+          })();
+          </script>
+          {{ end }}
+
+          {{ if .ShowRepackage }}
+          <form method="post" action="/orders/{{ .O.ID }}/repackage" class="wo-actions-form mt-3">
+            <div class="wo-actions-note mb-2">换包：挑一个新版本包，保存后再点「重试执行」即用新包重跑失败的服。</div>
+            <div class="input-group">
+              <select class="form-select" name="version_package">
+                {{ range .RepackagePkgs }}<option value="{{ . }}">{{ . }}</option>{{ end }}
+              </select>
+              <button class="btn btn-outline-primary" type="submit">保存新包</button>
+            </div>
+          </form>
+          {{ end }}
+
+          {{ if $showRollback }}
+          <form method="post" action="/orders/{{ .O.ID }}/rollback" class="wo-rollback"
+                data-confirm="用本工单部署的版本建一张回滚工单（走审批），确认？" data-danger="1">
+            <div class="wo-rollback-note">危险操作会创建新的回滚工单，不会直接覆盖当前记录。</div>
+            <button class="btn btn-outline-warning" type="submit">回滚到此版本</button>
+          </form>
+          {{ end }}
+        </div>
+      </div>
+      {{ end }}
+  </div>
+
+  <div class="wo-log-section">
+    <div class="card wo-card wo-log-card" id="woLogCard">
+      <div class="card-header">
+        <div class="wo-loghead">
+          <span class="dot {{ if .IsExecuting }}run{{ end }}"></span>
+          <span>执行日志（默认收起）</span>
+        </div>
+        <span class="wo-logtools">
+          <span class="wo-logmeta">{{ if .IsExecuting }}实时刷新中{{ else }}历史记录{{ end }}</span>
+          <button type="button" class="wo-log-toggle" id="woLogToggle" aria-expanded="false">展开日志</button>
+          <button type="button" class="wo-log-toggle wo-log-zoom" id="woLogZoom" title="放大查看(Esc 关闭)">⤢ 放大</button>
+        </span>
+      </div>
+      <div class="wo-log-body" id="woLogBody">
+        {{ if .IsExecuting }}
+        <div id="logbox"
+             hx-get="/orders/{{ .O.ID }}/logs?poll=1"
+             hx-trigger="load, every 2s"
+             hx-target="#logpre"
+             hx-swap="beforeend"
+             hx-vals="js:{after: window.__woLogAfter || 0}">
+          {{ template "logs_inner" dict "Logs" nil }}
+        </div>
+        {{ else }}
+        <div id="logbox"
+             hx-get="/orders/{{ .O.ID }}/logs"
+             hx-trigger="load"
+             hx-target="#logpre"
+             hx-swap="beforeend"
+             hx-vals="js:{after: window.__woLogAfter || 0}">
+          {{ template "logs_inner" dict "Logs" nil }}
+        </div>
+        {{ end }}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 日志放大覆盖层:把 #logbox 临时搬进来,搬回时不丢轮询/滚动状态 -->
+<div id="woLogFs" class="wo-logfs-overlay" hidden>
+  <div class="wo-logfs-bar">
+    <span>执行日志 · 放大</span>
+    <button type="button" class="wo-log-toggle" id="woLogFsClose">收起 ✕</button>
+  </div>
+  <div class="wo-logfs-host" id="woLogFsHost"></div>
+</div>
+
+<script>
+(function(){
+  var logCard = document.getElementById('woLogCard');
+  var logBody = document.getElementById('woLogBody');
+  var logToggle = document.getElementById('woLogToggle');
+  var box = document.getElementById('logbox');
+  var logPre = document.getElementById('logpre');
+  window.__woLogAfter = window.__woLogAfter || 0;
+
+  function setLogOpen(open) {
+    if (!logCard || !logBody || !logToggle) return;
+    logCard.classList.toggle('open', open);
+    logToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    logToggle.textContent = open ? '收起日志' : '展开日志';
+  }
+
+  setLogOpen(false);
+  if (logToggle) {
+    logToggle.addEventListener('click', function(){
+      setLogOpen(!logCard.classList.contains('open'));
+    });
+  }
+
+  // 放大:把 #logbox 临时搬进全屏覆盖层,收起时搬回原位(不丢 htmx 轮询与滚动监听)。
+  var zoomBtn = document.getElementById('woLogZoom');
+  var fsOverlay = document.getElementById('woLogFs');
+  var fsHost = document.getElementById('woLogFsHost');
+  var fsClose = document.getElementById('woLogFsClose');
+  function fsOpen() {
+    if (!box || !fsOverlay || !fsHost) return;
+    fsHost.appendChild(box);
+    fsOverlay.hidden = false;
+    document.body.classList.add('logfs-lock');
+    requestAnimationFrame(function(){ box.scrollTop = box.scrollHeight; });
+  }
+  function fsCloseFn() {
+    if (!box || !logBody) return;
+    logBody.appendChild(box);
+    fsOverlay.hidden = true;
+    document.body.classList.remove('logfs-lock');
+  }
+  if (zoomBtn) {
+    zoomBtn.addEventListener('click', function(){
+      setLogOpen(true); // 放大时顺带视作展开
+      fsOpen();
+    });
+  }
+  if (fsClose) fsClose.addEventListener('click', fsCloseFn);
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && fsOverlay && !fsOverlay.hidden) fsCloseFn();
+  });
+
+  function syncLogState() {
+    if (!box || !logPre) return;
+    box.classList.toggle('is-empty', !logPre.textContent.trim());
+  }
+  if (box && logPre) {
+    var userScrolled = false, savedTop = 0;
+    box.addEventListener('scroll', function(){
+      userScrolled = (box.scrollHeight - box.scrollTop - box.clientHeight) > 40;
+      savedTop = box.scrollTop;
+    });
+    box.addEventListener('htmx:afterRequest', function(evt){
+      var xhr = evt.detail && evt.detail.xhr;
+      if (!xhr) return;
+      var latest = parseInt(xhr.getResponseHeader('X-Log-Last-ID') || '', 10);
+      if (!isNaN(latest) && latest >= 0) {
+        window.__woLogAfter = latest;
+      }
+    });
+    box.addEventListener('htmx:afterSwap', function(){
+      syncLogState();
+      requestAnimationFrame(function(){
+        box.scrollTop = userScrolled ? savedTop : box.scrollHeight;
+      });
+    });
+    syncLogState();
+    if (!box.classList.contains('is-empty')) {
+      box.scrollTop = box.scrollHeight;
+    }
+  }
+
+  document.querySelectorAll('[data-json-fallback]').forEach(function(el){
+    var pre = el.querySelector('pre');
+    var summary = el.querySelector('.wo-json-summary');
+    if (!pre || !summary) return;
+
+    var raw = pre.textContent.trim();
+    if (!raw) return;
+
+    try {
+      var data = JSON.parse(raw);
+      pre.textContent = JSON.stringify(data, null, 2);
+
+      var firstRow = Array.isArray(data.rows) && data.rows.length ? data.rows[0] : null;
+      var items = [];
+      function push(label, value) {
+        if (value === undefined || value === null || value === '') return;
+        items.push({ label: label, value: String(value) });
+      }
+
+      push('大区', data.region_name);
+      push('版本包', data.version_package);
+      push('记录数', Array.isArray(data.rows) ? data.rows.length + ' 条' : '');
+      if (firstRow) {
+        push('类型', firstRow.kind);
+        push('目标ID', firstRow.id);
+        push('服名', firstRow.WorldName);
+        push('WorldID', firstRow.WorldID);
+        push('部署IP', firstRow.self_ip);
+        push('MySQL', firstRow.mysql_ip);
+      }
+
+      summary.innerHTML = items.slice(0, 6).map(function(item){
+        return '<div class="wo-overview-item"><div class="k">' + item.label + '</div><div class="v">' + item.value + '</div></div>';
+      }).join('');
+    } catch (err) {
+      // 解析失败时保留原始 JSON 折叠展示
+    }
+  });
+})();
+</script>
+
+{{ template "foot" . }}

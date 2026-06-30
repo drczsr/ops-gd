@@ -1,0 +1,255 @@
+{{ template "head" . }}
+<style>
+  /* ===== 批量创建游戏服 —— 控制台卡片风格(对齐「创建游戏服」向导) ===== */
+  .cw-wrap { display:flex; flex-direction:column; gap:.7rem; }
+  .cw-back { align-self:flex-start; display:inline-flex; align-items:center; gap:5px; height:30px; padding:0 12px;
+    border:1px solid #e2e8f0; border-radius:8px; background:#fff; color:#475569; font-size:.82rem; font-weight:600;
+    text-decoration:none; transition:background .12s, border-color .12s; }
+  .cw-back:hover { background:#f8fafc; border-color:#cbd5e1; color:#334155; }
+
+  .cw-shell { max-width:760px; background:#fff; border:1px solid #e8ebf1; border-radius:12px; overflow:hidden;
+    box-shadow:0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.05); }
+
+  .cw-hd { display:flex; align-items:center; gap:.9rem; padding:.95rem 1.1rem;
+    border-bottom:1px solid #f0f2f6; background:linear-gradient(180deg,#fbfcff,#fff); }
+  .cw-hd-ic { width:36px; height:36px; flex:none; border-radius:10px; color:#fff;
+    background:linear-gradient(135deg,#0d6efd,#3b82f6); display:flex; align-items:center; justify-content:center;
+    box-shadow:0 5px 12px rgba(13,110,253,.28); }
+  .cw-hd-ic svg { width:20px; height:20px; }
+  .cw-hd h4 { margin:0; font-size:1.02rem; font-weight:700; color:#101828; }
+  .cw-hd-sub { color:#98a2b3; font-size:.79rem; margin-top:.12rem; }
+  .cw-hd-tag { margin-left:auto; color:#2563eb; border:1px solid #dbe8ff; background:#eef4ff;
+    font-size:.74rem; font-weight:600; padding:2px 10px; border-radius:999px; }
+
+  .cw-bd { padding:1.1rem 1.2rem 0; }
+  .cw-form { width:100%; }
+
+  .cw-sec { display:flex; align-items:center; gap:.55rem; font-weight:700; color:#101828;
+    font-size:.92rem; margin:1.15rem 0 .7rem; }
+  .cw-sec::before { content:""; width:3px; height:14px; border-radius:2px; background:#0d6efd; }
+  .cw-sec:first-of-type { margin-top:.2rem; }
+
+  .cw-row { display:flex; align-items:flex-start; gap:1.1rem; margin-bottom:.7rem; }
+  .cw-row > label.lbl { width:150px; flex:none; text-align:right; padding-top:.5rem; white-space:nowrap;
+    color:#475467; font-size:.86rem; font-weight:500; }
+  .cw-row > label.lbl .req { color:#f04438; margin-left:2px; }
+  .cw-row .ctl { flex:1; min-width:0; }
+  .cw-hint { color:#98a2b3; font-size:.78rem; margin-top:.28rem; line-height:1.45; }
+
+  .cw-bd .form-control, .cw-bd .form-select { height:37px; border-radius:9px; border-color:#dfe3e8;
+    font-size:.88rem; padding:.4rem .75rem; transition:border-color .12s, box-shadow .12s; }
+  .cw-bd .form-control:focus, .cw-bd .form-select:focus { border-color:#0d6efd;
+    box-shadow:0 0 0 3px rgba(13,110,253,.12); }
+  .cw-bd .form-control::placeholder { color:#c4ccd6; }
+  .cw-stack > .form-control, .cw-stack > .form-select { margin-bottom:.5rem; }
+  .cw-stack > :last-child { margin-bottom:0; }
+  .cw-narrow { max-width:300px; }
+  .cw-mid { max-width:440px; }
+
+  /* 行内单选/勾选 */
+  .cw-check { display:inline-flex; align-items:center; gap:.45rem; font-size:.86rem; cursor:pointer; color:#344054; }
+  .cw-check input { accent-color:#0d6efd; width:16px; height:16px; cursor:pointer; }
+  .cw-radios { display:inline-flex; gap:.5rem; flex-wrap:wrap; }
+  .cw-radios .cw-check { border:1.5px solid #e4e7ec; border-radius:9px; padding:.42rem .85rem; transition:all .15s; }
+  .cw-radios .cw-check:hover { border-color:#a7c7ff; }
+  .cw-radios .cw-check:has(input:checked) { border-color:#0d6efd; background:#f5f9ff; color:#0d6efd; font-weight:600; }
+
+  .cw-gate { margin-top:.75rem; padding:.85rem .95rem; border:1px dashed #dbe0e6; border-radius:11px; background:#fbfcfe; }
+  .hide { display:none !important; }
+  .cw-sub-lbl { color:#667085; font-size:.8rem; font-weight:600; margin:.65rem 0 .35rem; }
+
+  .cw-foot { display:flex; align-items:center; gap:.7rem; margin-top:1.3rem;
+    padding:.85rem 0; border-top:1px solid #f0f2f6; }
+  .cw-foot .btn { border-radius:9px; padding:.45rem 1.3rem; font-size:.9rem; font-weight:600; }
+  .cw-foot .btn-primary { box-shadow:0 4px 10px rgba(13,110,253,.22); }
+
+  /* 预览区 */
+  .cw-preview { max-width:1100px; margin-top:1.4rem; }
+  .cw-preview h5 { font-size:1rem; font-weight:700; color:#101828; margin:0 0 .35rem; }
+  .cw-confirm-tip { font-size:.84rem; color:#475467; background:#fff8ec; border:1px solid #ffe6b8;
+    border-radius:10px; padding:.6rem .85rem; margin:.5rem 0 .9rem; line-height:1.6; }
+  .cw-confirm-tip strong { color:#b45309; }
+  .cw-table-wrap { border:1px solid #eceef2; border-radius:11px; overflow:auto; }
+  .cw-plan { width:100%; margin:0; border-collapse:separate; border-spacing:0; }
+  .cw-plan th { color:#6b7280; font-weight:600; font-size:.78rem; background:#f8f9fb; white-space:nowrap;
+    padding:.55rem .8rem; text-align:left; border-bottom:1px solid #eceef2; position:sticky; top:0; }
+  .cw-plan td { padding:.5rem .8rem; vertical-align:middle; white-space:nowrap; font-size:.84rem; color:#344054; }
+  .cw-plan tbody tr td { border-bottom:1px solid #f3f4f6; }
+  .cw-plan tbody tr:last-child td { border-bottom:0; }
+  .cw-plan tbody tr:hover td { background:#fafcff; }
+  .cw-plan .badge { font-weight:600; padding:.22rem .5rem; border-radius:6px; font-size:.74rem; }
+  .k-game { background:#e7f1ff; color:#0d6efd; }
+  .k-battle { background:#fff0e6; color:#d9480f; }
+  .k-copy { background:#e0f7fa; color:#0e7490; }
+  .k-center { background:#e7f0fd; color:#1849a9; }
+  .cw-mono { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-variant-numeric:tabular-nums; }
+  .cw-commit { display:flex; align-items:center; gap:.6rem; margin-top:.9rem; }
+  .cw-commit .btn { border-radius:9px; padding:.45rem 1.2rem; font-size:.9rem; font-weight:600; }
+</style>
+
+<div class="cw-wrap">
+  <a href="/gsconfig" class="cw-back">← 返回配置列表</a>
+
+  <div class="cw-shell">
+    <div class="cw-hd">
+      <div class="cw-hd-ic">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="6" rx="1.5"/><rect x="2" y="15" width="20" height="6" rx="1.5"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+      </div>
+      <div>
+        <h4>批量创建游戏服</h4>
+        <div class="cw-hd-sub">按 4 的倍数整批生成游戏服 + 战斗/副本服,可选共用一个中心服</div>
+      </div>
+      <span class="cw-hd-tag">批量</span>
+    </div>
+
+    <div class="cw-bd">
+      {{ if .Err }}<div class="alert alert-danger py-2">{{ .Err }}</div>{{ end }}
+
+      <form class="cw-form" method="post" action="/gsconfig/newgame/preview">
+        <!-- 大区 -->
+        <div class="cw-sec">大区</div>
+        <div class="cw-radios" id="regionModes">
+          <label class="cw-check"><input type="radio" name="mode" id="modeA" value="exist" checked> 已有大区</label>
+          <label class="cw-check"><input type="radio" name="mode" id="modeB" value="new"> 新开大区</label>
+        </div>
+        <div class="region-sub cw-mid" data-rm="exist" style="margin-top:.6rem;">
+          <select class="form-select" name="region_exist">
+            {{ range .Regions }}<option value="{{ . }}">{{ . }}</option>{{ end }}
+          </select>
+        </div>
+        <div class="region-sub cw-mid cw-stack hide" data-rm="new" style="margin-top:.6rem;">
+          <input class="form-control" name="region_new" placeholder="输入新大区名(如 凤凰)">
+          <input class="form-control" name="letter_prefix" placeholder="WorldName 字母前缀(如 F,新开大区必填)">
+        </div>
+        <div class="cw-hint">已有大区会沿用该区现有字母前缀续号;新开大区需指定字母前缀。</div>
+
+        <!-- 规模与数据库 -->
+        <div class="cw-sec">规模与数据库</div>
+        <div class="cw-row">
+          <label class="lbl">数量<span class="req">*</span></label>
+          <div class="ctl">
+            <input class="form-control cw-narrow" name="count" value="4">
+            <div class="cw-hint">必须是 4 的倍数(每批 4 服共用一组战斗/副本)。</div>
+          </div>
+        </div>
+        <div class="cw-row">
+          <label class="lbl">游戏服 MySqlIp</label>
+          <div class="ctl"><input class="form-control cw-mid" name="game_mysqlip" list="mysqlips"></div>
+        </div>
+        <div class="cw-row">
+          <label class="lbl">战斗/副本服 MySqlIp</label>
+          <div class="ctl"><input class="form-control cw-mid" name="battle_mysqlip" list="mysqlips"></div>
+        </div>
+
+        <!-- 中心服 -->
+        <div class="cw-sec">中心服</div>
+        <label class="cw-check"><input type="checkbox" name="center_enabled" id="centerEnabled" value="1"> 配置中心服</label>
+        <div class="cw-hint">不勾选则本批新服不挂中心服;勾选后整批共用一个中心服。</div>
+        <div id="centerBox" class="cw-gate hide">
+          <div class="cw-radios">
+            <label class="cw-check"><input type="radio" name="center_mode" id="cmExist" value="exist" checked> 挂到现有中心服</label>
+            <label class="cw-check"><input type="radio" name="center_mode" id="cmNew" value="new"> 新建中心服</label>
+          </div>
+          <div class="center-sub cw-mid" data-cm="exist" style="margin-top:.6rem;">
+            <select class="form-select" name="center_exist">
+              {{ range .Centers }}<option value="{{ .ID }}">中心服 {{ .ID }}{{ if .CopyIDs }}(副本 {{ range $i, $c := .CopyIDs }}{{ if $i }}、{{ end }}{{ $c }}{{ end }}){{ end }}</option>{{ end }}
+            </select>
+          </div>
+          <div class="center-sub cw-mid cw-stack hide" data-cm="new" style="margin-top:.6rem;">
+            <select class="form-select" name="center_machine">
+              <option value="">— 选择空闲机器 —</option>
+              {{ range .BattleMs }}<option value="{{ .SelfIp }}|{{ .RealIp }}">{{ .SelfIp }}</option>{{ end }}
+            </select>
+            <input class="form-control" name="center_mysqlip" list="mysqlips" placeholder="中心/中心副本服 MySqlIp">
+          </div>
+        </div>
+
+        <!-- 网络与版本 -->
+        <div class="cw-sec">网络与版本</div>
+        <div class="cw-row">
+          <label class="lbl">外网地址</label>
+          <div class="ctl">
+            <div class="cw-radios">
+              <label class="cw-check"><input type="radio" name="add_public_url" id="apuYes" value="1" {{ if ne (index .Form "add_public_url") "0" }}checked{{ end }}> 添加外网域名(wss)</label>
+              <label class="cw-check"><input type="radio" name="add_public_url" id="apuNo" value="0" {{ if eq (index .Form "add_public_url") "0" }}checked{{ end }}> 用外网IP</label>
+            </div>
+            <div class="cw-hint">游戏服 gs-tw、战斗/副本/中心 ws-tw 的 wss 地址;选「用外网IP」则 RealSelfPublicUrl 填外网IP。</div>
+          </div>
+        </div>
+        <div class="cw-row">
+          <label class="lbl">版本包</label>
+          <div class="ctl">
+            <select class="form-select cw-mid" name="version_package">
+              {{ range $i, $p := .Packages }}<option value="{{ $p }}" {{ if or (eq $.Pkg $p) (and (eq $.Pkg "") (eq $i 0)) }}selected{{ end }}>{{ $p }}</option>{{ end }}
+            </select>
+            <div class="cw-hint">新服铺包 + 初始化数据库用,默认最新。</div>
+          </div>
+        </div>
+
+        <div class="cw-foot">
+          <button class="btn btn-primary">预览</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {{ if .Preview }}
+  <div class="cw-preview">
+    <h5>预览(共 {{ len .Preview }} 个新服)—— 确认后<strong>免审批直接创建并部署</strong></h5>
+    <div class="cw-confirm-tip">
+      将写配置库 → 生成 serverlist 发布 → 逐服铺包/初始化DB/开服 → 建 ALB 转发。
+      版本包:<strong>{{ if .Pkg }}{{ .Pkg }}{{ else }}默认最新{{ end }}</strong>
+    </div>
+    <div class="cw-table-wrap">
+      <table class="cw-plan">
+        <thead><tr><th>类型</th><th>Id</th><th>展示名(ServerShowName)</th><th>WorldName</th><th>机器(SelfIp)</th><th>端口档</th><th>所属战斗服</th><th>DataBaseName</th><th>MySqlIp</th></tr></thead>
+        <tbody>
+          {{ range .Preview }}
+          <tr>
+            <td>{{ if eq .Kind "game" }}<span class="badge k-game">游戏</span>{{ else if eq .Kind "battle" }}<span class="badge k-battle">战斗</span>{{ else if eq .Kind "center" }}<span class="badge k-center">中心</span>{{ else }}<span class="badge k-copy">副本</span>{{ end }}</td>
+            <td class="cw-mono">{{ .ID }}</td><td>{{ .ServerShowName }}</td><td class="cw-mono">{{ .WorldName }}</td><td class="cw-mono">{{ .SelfPublicIp }}</td>
+            <td class="cw-mono">{{ .PortBase }}</td><td class="cw-mono">{{ .BattleWorldID }}</td><td>{{ .DataBaseName }}</td><td class="cw-mono">{{ .MySqlIp }}</td>
+          </tr>
+          {{ end }}
+        </tbody>
+      </table>
+    </div>
+    <form class="cw-commit" method="post" action="/gsconfig/newgame/commit"
+          data-confirm="确认创建?将免审批直接写库、发布配置、部署新服并建 ALB。" data-danger="1">
+      {{ range $k, $v := .Form }}<input type="hidden" name="{{ $k }}" value="{{ $v }}">{{ end }}
+      <button class="btn btn-danger">确认创建并部署</button>
+      <a href="/gsconfig/newgame" class="btn btn-outline-secondary">重新填写</a>
+    </form>
+  </div>
+  {{ end }}
+</div>
+
+<datalist id="mysqlips">
+  {{ range .MySqlIps }}<option value="{{ . }}">{{ end }}
+</datalist>
+
+<script>
+(function(){
+  // 中心服:勾选开关 + 现有/新建子面板切换
+  var ce = document.getElementById('centerEnabled'), box = document.getElementById('centerBox');
+  function syncBox(){ if (box) box.classList.toggle('hide', !(ce && ce.checked)); }
+  if (ce){ ce.addEventListener('change', syncBox); syncBox(); }
+
+  function syncSub(name, attr){
+    var sel = document.querySelector('input[name=' + name + ']:checked');
+    var mode = sel ? sel.value : '';
+    document.querySelectorAll('[' + attr + ']').forEach(function(el){
+      el.classList.toggle('hide', el.getAttribute(attr) !== mode);
+    });
+  }
+  function bind(name, attr){
+    document.querySelectorAll('input[name=' + name + ']').forEach(function(r){
+      r.addEventListener('change', function(){ syncSub(name, attr); });
+    });
+    syncSub(name, attr);
+  }
+  bind('center_mode', 'data-cm'); // 现有中心服 / 新建中心服
+  bind('mode', 'data-rm');        // 已有大区 / 新开大区
+})();
+</script>
+{{ template "foot" . }}

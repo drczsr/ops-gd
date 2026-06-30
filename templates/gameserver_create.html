@@ -1,0 +1,498 @@
+{{ template "head" . }}
+<style>
+  /* ===== 创建游戏服向导 —— 控制台卡片风格 ===== */
+  .cw-wrap { height: 100%; display: flex; flex-direction: column; gap: .85rem; }
+  .cw-head { display: flex; align-items: baseline; gap: .5rem; flex: none; }
+  .cw-head h4 { margin: 0; font-weight: 600; font-size: 1.18rem; }
+  .cw-head .hint { color: #9aa3af; font-size: .82rem; }
+
+  /* 外层卡片 */
+  .cw-shell { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #fff;
+    border: 1px solid #e8ebf1; border-radius: 10px; overflow: hidden;
+    box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.05); }
+
+  /* 卡片头:图标 + 标题 + 副标题 */
+  .cw-hd { display: flex; align-items: center; gap: .9rem; padding: .95rem 1rem;
+    border-bottom: 1px solid #f0f2f6; background: linear-gradient(180deg,#fbfcff,#fff); }
+  .cw-hd-ic { width: 34px; height: 34px; flex: none; border-radius: 9px; color: #fff;
+    background: linear-gradient(135deg,#0d6efd,#3b82f6); display: flex; align-items: center;
+    justify-content: center; box-shadow: 0 5px 12px rgba(13,110,253,.28); }
+  .cw-hd-ic svg { width: 20px; height: 20px; }
+  .cw-hd h4 { margin: 0; font-size: 1rem; font-weight: 700; color: #101828; }
+  .cw-hd-sub { color: #98a2b3; font-size: .79rem; margin-top: .12rem; }
+  .cw-hd-tag { margin-left: auto; color: #2563eb; border: 1px solid #dbe8ff; background: #eef4ff;
+    font-size: .74rem; font-weight: 600; padding: 2px 10px; border-radius: 999px; }
+
+  /* 步骤条 */
+  .cw-steps { display: flex; align-items: center; padding: .72rem 1rem; gap: .35rem;
+    border-bottom: 1px solid #f0f2f6; background: #fcfdff; }
+  .cw-step { display: flex; align-items: center; gap: .55rem; color: #98a2b3; font-weight: 600;
+    font-size: .88rem; white-space: nowrap; }
+  .cw-step .num { width: 22px; height: 22px; border-radius: 50%; background: #eef0f4; color: #98a2b3;
+    display: flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 700;
+    transition: all .2s; }
+  .cw-step.active { color: #0d6efd; }
+  .cw-step.active .num { background: #0d6efd; color: #fff; box-shadow: 0 0 0 4px rgba(13,110,253,.14); }
+  .cw-step.done { color: #1e7e34; }
+  .cw-step.done .num { background: #1e7e34; color: #fff; font-size: 0; }
+  .cw-step.done .num::after { content: "✓"; font-size: .85rem; font-weight: 700; }
+  .cw-steps .bar { flex: 1; height: 2px; background: #e7eaef; border-radius: 2px; margin: 0 .15rem; max-width: 120px; }
+
+  /* 卡片体 */
+  .cw-bd { flex: 1; min-height: 0; overflow: auto; padding: 1rem; }
+  .cw-form { width: 100%; max-width: 860px; }
+
+  /* 段落标题(竖线) */
+  .cw-sec { display: flex; align-items: center; gap: .55rem; font-weight: 600; color: #101828;
+    font-size: .96rem; margin: .9rem 0 .55rem; }
+  .cw-sec::before { content: ""; width: 3px; height: 15px; border-radius: 2px; background: #0d6efd; }
+  .cw-sec:first-child { margin-top: .2rem; }
+
+  /* 行:左标签右控件 */
+  .cw-row { display: flex; align-items: flex-start; gap: 1.2rem; margin-bottom: .6rem; }
+  .cw-row > label.lbl { width: 120px; flex: none; text-align: right; padding-top: .55rem;
+    color: #475467; font-size: .88rem; font-weight: 500; }
+  .cw-row > label.lbl .req { color: #f04438; margin-left: 2px; }
+  .cw-row .ctl { flex: 1; min-width: 0; }
+  .cw-hint { color: #98a2b3; font-size: .79rem; margin-top: .22rem; line-height: 1.4; }
+
+  /* 输入控件:统一加大到舒适尺寸 + 蓝色聚焦光圈 */
+  .cw-bd .form-control, .cw-bd .form-select { height: 37px; border-radius: 9px; border-color: #dfe3e8;
+    font-size: .9rem; padding: .4rem .75rem; transition: border-color .12s, box-shadow .12s; }
+  .cw-bd .form-control:focus, .cw-bd .form-select:focus { border-color: #0d6efd;
+    box-shadow: 0 0 0 3px rgba(13,110,253,.12); }
+  .cw-bd .form-control::placeholder { color: #c4ccd6; }
+
+  /* 大卡片单选(落点 / 战斗模式 / 中心模式) */
+  .cw-cards { display: flex; gap: .8rem; flex-wrap: wrap; }
+  .cw-card { flex: 1; min-width: 210px; border: 1.5px solid #e4e7ec; border-radius: 11px;
+    padding: .75rem 2rem .75rem .95rem; cursor: pointer; position: relative; background: #fff;
+    transition: border-color .15s, background .15s, box-shadow .15s; }
+  .cw-card:hover { border-color: #a7c7ff; background: #fafcff; }
+  .cw-card.on { border-color: #0d6efd; background: #f5f9ff; box-shadow: 0 0 0 3px rgba(13,110,253,.1); }
+  .cw-card .ttl { font-weight: 600; color: #101828; font-size: .9rem; }
+  .cw-card .sub { color: #98a2b3; font-size: .78rem; margin-top: .2rem; line-height: 1.4; }
+  .cw-card input[type=radio] { position: absolute; right: .75rem; top: .85rem; accent-color: #0d6efd;
+    width: 16px; height: 16px; cursor: pointer; }
+  .cw-sub { margin-top: .7rem; }
+  /* 向导分步:未激活的步骤面板整块隐藏(否则两步会同时铺在一页上) */
+  .cw-panel.hide { display: none; }
+  .cw-sub.hide { display: none; }
+
+  /* 行内单选/勾选(外网地址、配置战斗服开关) */
+  .cw-check { display: inline-flex; align-items: center; gap: .45rem; font-size: .88rem; cursor: pointer;
+    color: #344054; }
+  .cw-check input { accent-color: #0d6efd; width: 16px; height: 16px; cursor: pointer; }
+  .cw-radios { display: inline-flex; gap: .5rem; flex-wrap: wrap; }
+  .cw-radios .cw-check { border: 1.5px solid #e4e7ec; border-radius: 8px; padding: .4rem .8rem;
+    transition: all .15s; }
+  .cw-radios .cw-check:hover { border-color: #a7c7ff; }
+  .cw-radios .cw-check:has(input:checked) { border-color: #0d6efd; background: #f5f9ff; color: #0d6efd; font-weight: 600; }
+  .cw-gate { margin-top: .8rem; padding: .85rem; border: 1px dashed #dbe0e6; border-radius: 10px;
+    background: #fbfcfe; }
+  .cw-gate.hide { display: none; }
+
+  /* 底部操作栏 */
+  .cw-foot { position: sticky; bottom: 0; z-index: 2; background: #fff;
+    display: flex; align-items: center; gap: .7rem; margin-top: 1.2rem;
+    padding: .8rem 0; border-top: 1px solid #f0f2f6; }
+  .cw-foot .spacer { display: none; }
+  .cw-foot .btn { border-radius: 9px; padding: .45rem 1.1rem; font-size: .9rem; font-weight: 500; }
+  .cw-foot .btn-primary { box-shadow: 0 4px 10px rgba(13,110,253,.22); }
+
+  /* 步骤③ 方案确认 */
+  .cw-confirm-tip { font-size: .88rem; color: #475467; background: #fff8ec; border: 1px solid #ffe6b8;
+    border-radius: 10px; padding: .7rem .9rem; margin-bottom: 1rem; line-height: 1.6; }
+  .cw-confirm-tip strong { color: #b45309; }
+  .cw-table-wrap { border: 1px solid #eceef2; border-radius: 11px; overflow: hidden; }
+  .cw-plan { width: 100%; margin: 0; border-collapse: separate; border-spacing: 0; }
+  .cw-plan th { color: #6b7280; font-weight: 600; font-size: .8rem; background: #f8f9fb;
+    white-space: nowrap; padding: .55rem .8rem; text-align: left; border-bottom: 1px solid #eceef2; }
+  .cw-plan td { padding: .55rem .8rem; vertical-align: middle; white-space: nowrap; font-size: .86rem; }
+  .cw-plan tbody tr:not(.cw-detail-row) td { border-bottom: 1px solid #f3f4f6; }
+  .cw-plan .badge { font-weight: 600; padding: .25rem .5rem; border-radius: 6px; }
+  .k-game { background: #e7f1ff; color: #0d6efd; }
+  .k-battle { background: #fff0e6; color: #d9480f; }
+  .k-copy { background: #e0f7fa; color: #0e7490; }
+  .k-center { background: #e7f0fd; color: #1849a9; }
+  /* 完整字段折叠 */
+  .cw-detail-row td { padding: 0 !important; border-bottom: 0 !important; }
+  .cw-detail { border-top: 1px dashed #e4e7ec; background: #fbfcfe; }
+  .cw-detail > summary { cursor: pointer; padding: .45rem .8rem; font-size: .82rem; color: #0d6efd;
+    list-style: none; user-select: none; }
+  .cw-detail > summary::-webkit-details-marker { display: none; }
+  .cw-detail > summary::before { content: "▸ "; }
+  .cw-detail[open] > summary::before { content: "▾ "; }
+  .cw-detail-body { padding: .2rem .9rem .9rem; }
+  .cw-detail-sec { font-size: .78rem; font-weight: 600; color: #475467; margin: .7rem 0 .4rem; }
+  .cw-kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: .25rem .9rem; }
+  .cw-kv .kv { display: flex; gap: .5rem; font-size: .8rem; padding: .15rem 0; border-bottom: 1px solid #f1f2f4;
+    white-space: normal; }
+  .cw-kv .kv .k { color: #98a2b3; flex: none; min-width: 130px; }
+  .cw-kv .kv .v { color: #101828; word-break: break-all; }
+  .cw-kv-port .kv { background: #fffbeb; border-bottom-color: #fdeec2; padding-left: .3rem; border-radius: 3px; }
+  .cw-kv-port .kv .v { font-weight: 600; }
+
+  @media (max-width: 980px) {
+    .cw-wrap { height: auto; }
+    .cw-form { max-width: none; }
+    .cw-row { display: block; margin-bottom: .9rem; }
+    .cw-row > label.lbl { width: auto; text-align: left; padding-top: 0; margin-bottom: .35rem; display: block; }
+    .cw-cards { flex-direction: column; }
+    .cw-steps { flex-wrap: wrap; }
+    .cw-steps .bar { display: none; }
+    .cw-hd { flex-wrap: wrap; }
+    .cw-hd-tag { margin-left: 0; }
+  }
+</style>
+
+{{ $f := .Form }}
+<div class="cw-wrap">
+  <div class="cw-head">
+    <h4>创建游戏服</h4>
+    <span class="hint">与系统列表页风格统一 · 全宽卡片布局</span>
+  </div>
+  <div class="cw-shell">
+    <div class="cw-hd">
+      <span class="cw-hd-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4.5" width="16" height="6.5" rx="1.6"/><rect x="4" y="13" width="16" height="6.5" rx="1.6"/><line x1="7.5" y1="7.75" x2="7.6" y2="7.75"/><line x1="7.5" y1="16.25" x2="7.6" y2="16.25"/></svg></span>
+      <div>
+        <h4>创建游戏服</h4>
+        <div class="cw-hd-sub">单服创建 · ID 可调整 · 自动算端口/拓扑，确认后免审批直接部署</div>
+      </div>
+      {{ if .Preview }}<span class="cw-hd-tag">步骤3:确认方案</span>{{ else }}<span class="cw-hd-tag">步骤1:基础配置</span>{{ end }}
+    </div>
+
+    <div class="cw-steps">
+      <div class="cw-step {{ if not .Preview }}active{{ else }}done{{ end }}" data-dot="1"><span class="num">1</span>基础配置</div>
+      <div class="bar"></div>
+      <div class="cw-step {{ if not .Preview }}{{ else }}done{{ end }}" data-dot="2"><span class="num">2</span>战斗 / 中心服</div>
+      <div class="bar"></div>
+      <div class="cw-step {{ if .Preview }}active{{ end }}"><span class="num">3</span>确认方案</div>
+    </div>
+
+    <div class="cw-bd">
+    {{ if .Err }}<div class="alert alert-danger py-2">{{ .Err }}</div>{{ end }}
+
+    {{ if .Preview }}
+    <!-- ===== 步骤③ 确认方案 ===== -->
+    <div class="cw-confirm-tip">将<strong>免审批直接创建并部署</strong>以下 {{ len .Preview }} 个服(写配置库 → 生成 serverlist 发布 → 逐服铺包 / 初始化DB / 开服)。版本包:<strong>{{ .Pkg }}</strong></div>
+    <div class="cw-table-wrap">
+      <table class="cw-plan align-middle">
+        <thead><tr><th>类型</th><th>Id</th><th>名称</th><th>机器</th><th>端口档</th><th>所属战斗服</th><th>库名</th><th>MySqlIp</th></tr></thead>
+        <tbody>
+        {{ range .Preview }}
+          <tr>
+            <td>{{ if eq .Kind "game" }}<span class="badge k-game">游戏服</span>{{ else if eq .Kind "battle" }}<span class="badge k-battle">战斗服</span>{{ else if eq .Kind "copy" }}<span class="badge k-copy">副本服</span>{{ else if eq .Kind "center" }}<span class="badge k-center">中心服</span>{{ else }}{{ .Kind }}{{ end }}</td>
+            <td>{{ .ID }}</td>
+            <td>{{ if .ServerShowName }}{{ .ServerShowName }}{{ else }}{{ .WorldName }}{{ end }}</td>
+            <td class="text-muted">{{ .SelfPublicIp }}</td>
+            <td>{{ .PortBase }}</td>
+            <td>{{ if gt .BattleWorldID 0 }}{{ .BattleWorldID }}{{ else }}—{{ end }}</td>
+            <td class="text-muted">{{ .DataBaseName }}</td>
+            <td class="text-muted">{{ .MySqlIp }}</td>
+          </tr>
+          <tr class="cw-detail-row">
+            <td colspan="8">
+              <details class="cw-detail">
+                <summary>查看完整字段（写库 {{ len .Fields }} 列）</summary>
+                <div class="cw-detail-body">
+                  <div class="cw-detail-sec">端口段（由端口档 {{ .PortBase }} 自动展开）</div>
+                  <div class="cw-kv cw-kv-port">
+                    {{ $fl := .Fields }}
+                    {{ range $pk := (list "PortForClient" "RealPortForClient" "PortForGMServer" "DBRedisPort" "DBPort" "HttpPort" "HttpServerCommonPort" "PortForBigWorld" "PortForBattleWorld" "PortForBattleCopySceneWorld" "PortForGlobalCenter") }}
+                      {{ $pv := index $fl $pk }}
+                      {{ if $pv }}<div class="kv"><span class="k">{{ $pk }}</span><span class="v">{{ $pv }}</span></div>{{ end }}
+                    {{ end }}
+                  </div>
+                  <div class="cw-detail-sec">全部字段（含自动算 / 模板继承）</div>
+                  <div class="cw-kv">
+                    {{ range $k, $v := .Fields }}
+                      <div class="kv"><span class="k">{{ $k }}</span><span class="v">{{ if $v }}{{ $v }}{{ else }}—{{ end }}</span></div>
+                    {{ end }}
+                  </div>
+                </div>
+              </details>
+            </td>
+          </tr>
+        {{ end }}
+        </tbody>
+      </table>
+    </div>
+    <form method="post" action="/gsconfig/create/commit" class="cw-foot"
+          data-confirm="确认创建?将免审批直接写库、发布配置并部署新服。" data-danger="1">
+      {{ range $k, $v := .Form }}<input type="hidden" name="{{ $k }}" value="{{ $v }}">{{ end }}
+      <a class="btn btn-outline-secondary" href="/gsconfig/create">返回修改</a>
+      <span class="spacer"></span>
+      <button class="btn btn-danger">确认创建</button>
+    </form>
+
+    {{ else }}
+    <!-- ===== 步骤①② 表单(前端切换) ===== -->
+    <form method="post" action="/gsconfig/create/preview" id="cwForm" class="cw-form">
+
+      <!-- 步骤① 基础配置 -->
+      <div class="cw-panel" id="panel1">
+        <div class="cw-sec">标识</div>
+
+        <div class="cw-row">
+          <label class="lbl">服务器名称<span class="req">*</span></label>
+          <div class="ctl">
+            <input class="form-control" name="server_name" placeholder="如 洛阳100服(展示给玩家)" value="{{ index $f "server_name" }}">
+            <div class="cw-hint">中文展示名,进客户端配置(ServerShowName / Desc)。</div>
+          </div>
+        </div>
+
+        <div class="cw-row">
+          <label class="lbl">服务器ID</label>
+          <div class="ctl">
+            <input class="form-control" type="number" min="1" step="1" name="manual_game_id" placeholder="留空自动分配；可手动修改" value="{{ index $f "manual_game_id" }}">
+            <div class="cw-hint">默认显示建议 ID；可改成你指定的 ID。若已存在会在预览时报错。</div>
+          </div>
+        </div>
+
+        <div class="cw-row">
+          <label class="lbl">WorldName 短码<span class="req">*</span></label>
+          <div class="ctl">
+            <input class="form-control" name="world_name" placeholder="如 Y100(进服务器端配置,需唯一)" value="{{ index $f "world_name" }}">
+            <div class="cw-hint">服务器端短码标识,须唯一。</div>
+          </div>
+        </div>
+
+        <div class="cw-row">
+          <label class="lbl">版本包<span class="req">*</span></label>
+          <div class="ctl">
+            <select class="form-select" name="version_package">
+              {{ range $i, $p := .Packages }}<option value="{{ $p }}" {{ if or (eq (index $f "version_package") $p) (and (eq (index $f "version_package") "") (eq $i 0)) }}selected{{ end }}>{{ $p }}</option>{{ end }}
+            </select>
+            <div class="cw-hint">新服铺包 + 初始化数据库会使用该版本包，确认后再进入下一步。</div>
+          </div>
+        </div>
+
+        <div class="cw-sec">落点与网络</div>
+
+        <div class="cw-row">
+          <label class="lbl">落点<span class="req">*</span></label>
+          <div class="ctl">
+            <div class="cw-cards" data-radio="slot_mode">
+              <label class="cw-card" data-val="pick">
+                <input type="radio" name="slot_mode" value="pick">
+                <div class="ttl">选已有空闲落点</div><div class="sub">从现有机器的空闲端口档里选</div>
+              </label>
+              <label class="cw-card" data-val="manual">
+                <input type="radio" name="slot_mode" value="manual">
+                <div class="ttl">手填机器IP</div><div class="sub">填IP,自动取该机空闲端口档</div>
+              </label>
+            </div>
+            <div class="cw-sub" data-show="slot_mode" data-when="pick">
+              <select class="form-select" name="slot">
+                <option value="">— 选择机器 + 空闲端口档 —</option>
+                {{ range .Slots }}
+                <option value="{{ .SelfPublicIp }}|{{ .RealSelfPublicIp }}|{{ .PortBase }}"
+                  {{ if eq (index $f "slot") (printf "%s|%s|%d" .SelfPublicIp .RealSelfPublicIp .PortBase) }}selected{{ end }}>{{ .SelfPublicIp }} · 端口档 {{ .PortBase }}</option>
+                {{ end }}
+              </select>
+              <div class="cw-hint">机器内网IP + 空闲端口档(3300/3400/3500)</div>
+            </div>
+            <div class="cw-sub hide" data-show="slot_mode" data-when="manual">
+              <input class="form-control mb-2" name="game_self_ip" placeholder="机器内网IP(SelfPublicIp)" value="{{ index $f "game_self_ip" }}">
+              <input class="form-control" name="game_real_ip" placeholder="机器外网IP(留空则同内网)" value="{{ index $f "game_real_ip" }}">
+              <div class="cw-hint">系统会查该IP现有游戏服占的端口档,自动取最小空闲档;3300/3400/3500 三档全占则不能用。</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cw-row">
+          <label class="lbl">游戏服 MySqlIp<span class="req">*</span></label>
+          <div class="ctl">
+            <input class="form-control" name="game_mysqlip" list="mysqlips" placeholder="选择或填写" value="{{ index $f "game_mysqlip" }}">
+          </div>
+        </div>
+
+        <div class="cw-row">
+          <label class="lbl">外网地址</label>
+          <div class="ctl">
+            <div class="cw-radios">
+              <label class="cw-check"><input type="radio" name="add_public_url" value="1" {{ if ne (index $f "add_public_url") "0" }}checked{{ end }}> 添加外网域名(wss)</label>
+              <label class="cw-check"><input type="radio" name="add_public_url" value="0" {{ if eq (index $f "add_public_url") "0" }}checked{{ end }}> 用外网IP</label>
+            </div>
+            <div class="cw-hint">「添加外网域名」:游戏服 gs-tw、战斗/副本/中心 ws-tw 的 wss 地址(/s&lt;id&gt;);「用外网IP」:RealSelfPublicUrl 直接填外网IP。</div>
+          </div>
+        </div>
+
+        <div class="cw-foot">
+          <a class="btn btn-outline-secondary" href="/gsconfig">取消</a>
+          <span class="spacer"></span>
+          <button type="button" class="btn btn-primary" id="toStep2">下一步:战斗 / 中心服</button>
+        </div>
+      </div>
+
+      <!-- 步骤② 战斗/中心服 -->
+      <div class="cw-panel hide" id="panel2">
+        <div class="cw-sec">战斗服</div>
+        <div class="cw-row">
+          <label class="lbl">战斗服</label>
+          <div class="ctl">
+            <label class="cw-check">
+              <input type="checkbox" name="battle_enabled" id="battleEnabled" value="1" {{ if eq (index $f "battle_enabled") "1" }}checked{{ end }}>
+              配置战斗服
+            </label>
+            <div class="cw-hint">不勾选则本服不挂战斗服(BattleWorldID = -1)。</div>
+            <div id="battleBox" class="cw-gate {{ if not (eq (index $f "battle_enabled") "1") }}hide{{ end }}">
+              <div class="cw-cards" data-radio="battle_mode">
+                <label class="cw-card" data-val="exist">
+                  <input type="radio" name="battle_mode" value="exist">
+                  <div class="ttl">选择已有</div><div class="sub">挂到未满 4 个游戏服的战斗服</div>
+                </label>
+                <label class="cw-card" data-val="new">
+                  <input type="radio" name="battle_mode" value="new">
+                  <div class="ttl">新建战斗服</div><div class="sub">在空闲战斗机器新建一对战斗+副本</div>
+                </label>
+              </div>
+              <div class="cw-sub" data-show="battle_mode" data-when="exist">
+                <select class="form-select" name="battle_exist">
+                  {{ range .Battles }}<option value="{{ .ID }}" {{ if eq (index $f "battle_exist") (printf "%d" .ID) }}selected{{ end }}>战斗服 {{ .ID }}(已挂 {{ .AttachedGames }}/4)</option>{{ end }}
+                </select>
+              </div>
+              <div class="cw-sub hide" data-show="battle_mode" data-when="new">
+                <select class="form-select mb-2" name="battle_machine">
+                  <option value="">— 选择空闲战斗机器 —</option>
+                  {{ range .BattleMs }}<option value="{{ .SelfIp }}|{{ .RealIp }}" {{ if eq (index $f "battle_machine") (printf "%s|%s" .SelfIp .RealIp) }}selected{{ end }}>{{ .SelfIp }}</option>{{ end }}
+                </select>
+                <input class="form-control" name="battle_mysqlip" list="mysqlips" placeholder="战斗/副本服 MySqlIp" value="{{ index $f "battle_mysqlip" }}">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cw-sec">中心服</div>
+        <div class="cw-row">
+          <label class="lbl">中心服</label>
+          <div class="ctl">
+            <label class="cw-check">
+              <input type="checkbox" name="center_enabled" id="centerEnabled" value="1" {{ if eq (index $f "center_enabled") "1" }}checked{{ end }}>
+              配置中心服
+            </label>
+            <div class="cw-hint">不勾选则本服不挂中心服。</div>
+            <div id="centerBox" class="cw-gate {{ if not (eq (index $f "center_enabled") "1") }}hide{{ end }}">
+              <div class="cw-cards" data-radio="center_mode">
+                <label class="cw-card" data-val="exist">
+                  <input type="radio" name="center_mode" value="exist">
+                  <div class="ttl">选择已有</div><div class="sub">挂到现有中心服</div>
+                </label>
+                <label class="cw-card" data-val="new">
+                  <input type="radio" name="center_mode" value="new">
+                  <div class="ttl">新建中心服</div><div class="sub">在空闲机器新建中心服</div>
+                </label>
+              </div>
+              <div class="cw-sub" data-show="center_mode" data-when="exist">
+                <select class="form-select" name="center_exist">
+                  {{ range .Centers }}<option value="{{ .ID }}" {{ if eq (index $f "center_exist") (printf "%d" .ID) }}selected{{ end }}>中心服 {{ .ID }}{{ if .CopyIDs }}(战斗副本 {{ range $i, $c := .CopyIDs }}{{ if $i }}、{{ end }}{{ $c }}{{ end }}){{ end }}</option>{{ end }}
+                </select>
+              </div>
+              <div class="cw-sub hide" data-show="center_mode" data-when="new">
+                <select class="form-select" name="center_machine">
+                  <option value="">— 选择空闲机器 —</option>
+                  {{ range .BattleMs }}<option value="{{ .SelfIp }}|{{ .RealIp }}" {{ if eq (index $f "center_machine") (printf "%s|%s" .SelfIp .RealIp) }}selected{{ end }}>{{ .SelfIp }}</option>{{ end }}
+                </select>
+                <input class="form-control mt-2" name="center_mysqlip" list="mysqlips" placeholder="中心/中心副本服 MySqlIp" value="{{ index $f "center_mysqlip" }}">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cw-foot">
+          <button type="button" class="btn btn-outline-secondary" id="backStep1">上一步</button>
+          <span class="spacer"></span>
+          <button type="submit" class="btn btn-primary">下一步:确认方案</button>
+        </div>
+      </div>
+    </form>
+    {{ end }}
+    </div>
+  </div>
+
+  <datalist id="mysqlips">
+    {{ range .MySqlIps }}<option value="{{ . }}">{{ end }}
+  </datalist>
+</div>
+
+<script>
+(function(){
+  // 大卡片单选:点卡片选中其 radio,并按 data-radio 组显隐 data-show 子区
+  function syncRadioGroup(group){
+    var cards = document.querySelectorAll('.cw-cards[data-radio="'+group+'"] .cw-card');
+    var checked = '';
+    cards.forEach(function(card){
+      var on = card.querySelector('input[type=radio]').checked;
+      card.classList.toggle('on', on);
+      if (on) checked = card.getAttribute('data-val');
+    });
+    document.querySelectorAll('.cw-sub[data-show="'+group+'"]').forEach(function(sub){
+      sub.classList.toggle('hide', sub.getAttribute('data-when') !== checked);
+    });
+  }
+  document.querySelectorAll('.cw-cards[data-radio]').forEach(function(cards){
+    var group = cards.getAttribute('data-radio');
+    cards.querySelectorAll('.cw-card').forEach(function(card){
+      card.addEventListener('click', function(){
+        card.querySelector('input[type=radio]').checked = true;
+        syncRadioGroup(group);
+      });
+    });
+  });
+  // 默认值:Form 无值时各组选第一张卡
+  ['slot_mode','battle_mode','center_mode'].forEach(function(group){
+    var radios = document.querySelectorAll('input[name="'+group+'"]');
+    if (!radios.length) return;
+    var any = Array.prototype.some.call(radios, function(r){ return r.checked; });
+    if (!any) radios[0].checked = true;
+    syncRadioGroup(group);
+  });
+
+  // 勾选门控:未勾选则隐藏整块(后端也只在勾选时处理)
+  function gate(cbId, boxId){
+    var cb = document.getElementById(cbId), box = document.getElementById(boxId);
+    function sync(){ if (box) box.classList.toggle('hide', !(cb && cb.checked)); }
+    if (cb){ cb.addEventListener('change', sync); sync(); }
+  }
+  gate('battleEnabled', 'battleBox');
+  gate('centerEnabled', 'centerBox');
+
+  // 步骤①②切换
+  var p1 = document.getElementById('panel1'), p2 = document.getElementById('panel2');
+  var to2 = document.getElementById('toStep2'), back1 = document.getElementById('backStep1');
+  function setStep(n){
+    if (p1) p1.classList.toggle('hide', n !== 1);
+    if (p2) p2.classList.toggle('hide', n !== 2);
+    document.querySelectorAll('.cw-step[data-dot]').forEach(function(s){
+      var d = parseInt(s.getAttribute('data-dot'), 10);
+      s.classList.toggle('active', d === n);
+      s.classList.toggle('done', d < n);
+    });
+    window.scrollTo(0, 0);
+  }
+  if (to2) to2.addEventListener('click', function(){
+    // 轻校验:版本包 + 服务器名称 + WorldName 短码 + 落点 + 游戏服 MySqlIp 必填
+    var vp = document.querySelector('select[name=version_package]');
+    var sn = document.querySelector('input[name=server_name]');
+    var wn = document.querySelector('input[name=world_name]');
+    var gm = document.querySelector('input[name=game_mysqlip]');
+    if (vp && !vp.value) { uiAlert({ message: '请选择版本包' }); vp.focus(); return; }
+    if (sn && !sn.value.trim()) { uiAlert({ message: '请填写服务器名称' }); sn.focus(); return; }
+    if (wn && !wn.value.trim()) { uiAlert({ message: '请填写 WorldName 短码' }); wn.focus(); return; }
+    var slotMode = (document.querySelector('input[name=slot_mode]:checked')||{}).value;
+    if (slotMode === 'manual') {
+      var selfIp = document.querySelector('input[name=game_self_ip]');
+      if (selfIp && !selfIp.value.trim()) { uiAlert({ message: '请填写机器内网IP' }); selfIp.focus(); return; }
+    } else {
+      var slot = document.querySelector('select[name=slot]');
+      if (slot && !slot.value) { uiAlert({ message: '请选择落点(机器 + 端口档)' }); slot.focus(); return; }
+    }
+    if (gm && !gm.value.trim()) { uiAlert({ message: '请填写游戏服 MySqlIp' }); gm.focus(); return; }
+    setStep(2);
+  });
+  if (back1) back1.addEventListener('click', function(){ setStep(1); });
+})();
+</script>
+{{ template "foot" . }}
+

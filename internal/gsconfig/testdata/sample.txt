@@ -1,0 +1,7 @@
+Id	WorldName	WorldType	SelfPublicIp	DataBasePsw
+INT	STRING	INT	STRING	STRING
+MAX_ID=59999;MAX_RECORD=60000;HttpAgent;DBAgent;GMServer;	server	server	server	server
+#				
+1	测试一服	0	127.0.0.1	pwd1
+2	测试二服	0	127.0.0.2	pwd2
+3	战斗服	3	127.0.0.3	pwd3

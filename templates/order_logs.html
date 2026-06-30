@@ -1,0 +1,4 @@
+{{ define "logs_lines" }}{{ range .Logs }}[{{ .CreateTime.Format "15:04:05" }}] {{ if eq .LogType "action" }}({{ .Operator }}) {{ end }}{{ .Content }}
+{{ end }}{{ end }}
+
+{{ define "logs_inner" }}<pre id="logpre" class="m-0">{{ template "logs_lines" . }}</pre>{{ end }}

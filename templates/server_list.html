@@ -1,0 +1,743 @@
+{{ template "head" . }}
+<style>
+  /* ===== 实例(服务器)管理 —— 云控制台风格 ===== */
+  .ecs-page { height: 100%; display: flex; flex-direction: column; color: #1f2937; }
+
+  /* 页头:紧凑标题条 */
+  .ecs-head { display: flex; align-items: baseline; gap: .5rem; margin-bottom: .85rem; flex: none; }
+  .ecs-head h4 { margin: 0; font-weight: 600; font-size: 1.18rem; letter-spacing: .5px; }
+  .ecs-head .help { color: #c0c6cf; font-size: .85rem; align-self: center; cursor: help; }
+  .ecs-head .spacer { flex: 1; }
+  .ecs-head .hint { color: #9aa3af; font-size: .82rem; }
+  .ecs-head .hint b { color: #495565; font-weight: 600; }
+
+  /* 整块面板:工具条 + 表格 + 底栏 收进同一张卡 */
+  .ecs-card { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+    background: #fff; border: 1px solid #e8ebf1; border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.05); }
+
+  .ecs-cardbar { flex: none; display: flex; align-items: center; gap: .6rem;
+    padding: .7rem .85rem; border-bottom: 1px solid #eef1f5; }
+  .ecs-search { flex: 1; max-width: 420px; position: relative; }
+  .ecs-search input { width: 100%; height: 32px; border: 1px solid #dfe3e8; border-radius: 6px;
+    padding: 0 .7rem 0 2rem; font-size: .86rem; background: #fff; transition: border-color .12s, box-shadow .12s; }
+  .ecs-search input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.12); }
+  .ecs-search .si { position: absolute; left: .55rem; top: 50%; transform: translateY(-50%);
+    width: 15px; height: 15px; color: #aeb6c2; }
+  .ecs-cardbar .spacer { flex: 1; }
+  .ecs-icon-btn { width: 32px; height: 32px; border: 1px solid #dfe3e8; background: #fff;
+    border-radius: 6px; color: #5b6573; display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all .12s; }
+  .ecs-icon-btn:hover { background: #f5f8ff; border-color: #b6cffb; color: #2563eb; }
+  .ecs-icon-btn .ic { width: 16px; height: 16px; }
+  .ecs-icon-btn.spin .ic { animation: ecs-spin .8s linear infinite; }
+  @keyframes ecs-spin { to { transform: rotate(360deg); } }
+
+  /* 顶部分组筛选 chip(按区) */
+  .ecs-tabsbar { flex: none; display: flex; flex-wrap: wrap; gap: .4rem;
+    padding: .55rem .85rem; border-bottom: 1px solid #eef1f5; }
+  .ecs-tab { display: inline-flex; align-items: center; gap: .4rem; height: 28px; padding: 0 .7rem;
+    border: 1px solid #e3e8ee; border-radius: 999px; background: #fff; color: #5b6573;
+    font-size: .82rem; cursor: pointer; transition: all .12s; }
+  .ecs-tab:hover { border-color: #b6cffb; color: #2563eb; background: #f5f8ff; }
+  .ecs-tab.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .ecs-tab .cnt { font-size: .72rem; padding: 0 .4rem; min-width: 18px; text-align: center;
+    border-radius: 999px; background: #eef2f7; color: #5b6573; }
+  .ecs-tab.active .cnt { background: rgba(255,255,255,.22); color: #fff; }
+
+  .ecs-scroll { flex: 1; min-height: 0; overflow: auto; }
+
+  .ecs-table { width: 100%; min-width: 980px; margin: 0; border-collapse: separate; border-spacing: 0;
+    font-size: .87rem; table-layout: fixed; }
+  .ecs-table thead th { position: sticky; top: 0; z-index: 2; background: #fafbfc;
+    color: #6b7682; font-weight: 600; font-size: .8rem; white-space: nowrap;
+    border-bottom: 1px solid #e9edf2; padding: .62rem .9rem; vertical-align: middle; text-align: left; }
+  .ecs-table td { padding: .55rem .9rem; vertical-align: middle; white-space: nowrap;
+    border-bottom: 1px solid #f0f2f6; height: 52px; }
+  .ecs-table tbody tr { transition: background .1s; }
+  .ecs-table tbody tr:last-child td { border-bottom: 0; }
+  .ecs-table tbody tr:hover { background: #f7faff; }
+  .ecs-table tbody tr.row-sel { background: #eff5ff; }
+  .ecs-table tbody tr.row-sel td:first-child { box-shadow: inset 3px 0 0 #2563eb; }
+  .ecs-table .col-check { width: 3.2%; min-width: 42px; text-align: center; }
+  .ecs-table .col-check input, .row-check, #check-all { width: 15px; height: 15px; accent-color: #2563eb; cursor: pointer; vertical-align: middle; }
+  /* 列宽:按百分比均分填满整行,避免某一列吃掉所有富余而出现中间大片空白 */
+  .col-id     { width: 9%; }
+  .col-name   { width: 16%; }
+  .col-status { width: 11%; }
+  .col-type   { width: 9%; }
+  .col-ver    { width: 9%; }
+  .col-battle { width: 9%; }
+  .col-ip     { width: 18%; }
+  .col-ops    { width: 15.8%; }
+
+  .cell-ver { color: #475467; font-variant-numeric: tabular-nums; font-size: .84rem; }
+
+  .cell-id .idlink { color: #2563eb; text-decoration: none; font-weight: 600;
+    font-variant-numeric: tabular-nums; }
+  .cell-id .idlink:hover { text-decoration: underline; }
+  .cell-name { overflow: hidden; }
+  .cell-name .name { color: #344054; font-weight: 500; display: inline-block; max-width: 100%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+
+  /* 「已合入」徽章:目标服行上标注被合并进来的原服(合服废弃服不再单独成行) */
+  .merged-wrap { position: relative; display: inline-flex; }
+  .merged-badge { display: inline-flex; align-items: center; gap: .22rem; margin-left: .45rem;
+    padding: 0 .42rem; height: 16px; border-radius: 8px; cursor: pointer;
+    background: #eef2ff; color: #4f46e5; font-size: .68rem; font-weight: 600;
+    border: 1px solid #e0e7ff; vertical-align: middle; line-height: 1; transition: background .12s; }
+  .merged-badge:hover { background: #e0e7ff; }
+  .merged-badge svg { width: 10px; height: 10px; }
+  .merged-pop { position: fixed; z-index: 1090; background: #fff; border: 1px solid #e3e8ee;
+    border-radius: 8px; box-shadow: 0 8px 24px rgba(16,24,40,.14); padding: .35rem; min-width: 170px; display: none;
+    max-height: 60vh; overflow-y: auto; overscroll-behavior: contain; }
+  .merged-wrap.open .merged-pop { display: block; }
+  .merged-pop .mp-title { position: sticky; top: 0; background: #fff; font-size: .72rem; color: #8a93a0; padding: .2rem .5rem .35rem; }
+  .merged-pop a { display: block; padding: .35rem .5rem; border-radius: 5px; font-size: .8rem;
+    color: #2563eb; text-decoration: none; white-space: nowrap; }
+  .merged-pop a:hover { background: #f1f5fb; }
+  .merged-pop .mp-id { color: #9aa3af; font-size: .72rem; margin-left: .35rem; font-variant-numeric: tabular-nums; }
+  .cell-battle { color: #475467; font-variant-numeric: tabular-nums; }
+  .cell-ip div { line-height: 1.55; display: flex; align-items: center; gap: .4rem; }
+  .cell-ip .ip { font-variant-numeric: tabular-nums; color: #344054; font-size: .84rem; }
+  .cell-ip .iptag { display: inline-flex; justify-content: center; min-width: 30px; padding: 0 5px;
+    height: 17px; align-items: center; border-radius: 4px; font-size: .68rem; font-weight: 600; }
+  .cell-ip .iptag.pub { color: #1849a9; background: #eaf1fe; }
+  .cell-ip .iptag.pri { color: #5b6573; background: #f0f2f5; }
+  .empty-dash { color: #cbd2dc; }
+
+  /* 状态过滤漏斗 + 下拉 */
+  .th-filter { display: inline-flex; align-items: center; gap: .3rem; position: relative; }
+  .funnel { cursor: pointer; color: #b6bcc6; width: 13px; height: 13px; }
+  .funnel:hover { color: #6b7682; }
+  .funnel.on { color: #2563eb; }
+  .filter-menu { position: absolute; top: 150%; left: -8px; z-index: 20; background: #fff;
+    border: 1px solid #e3e8ee; border-radius: 8px; box-shadow: 0 8px 24px rgba(16,24,40,.14);
+    padding: .3rem; min-width: 118px; display: none; }
+  .filter-menu.show { display: block; }
+  .filter-menu button { display: block; width: 100%; text-align: left; border: 0; background: transparent;
+    padding: .4rem .65rem; border-radius: 5px; font-size: .85rem; color: #3f4754; cursor: pointer; font-weight: 400; }
+  .filter-menu button:hover { background: #f1f5fb; }
+  .filter-menu button.sel { color: #2563eb; font-weight: 600; background: #f1f5fb; }
+
+  /* 状态徽章:小圆点 + 文字 + 浅底胶囊 */
+  .st-badge { font-weight: 500; display: inline-flex; align-items: center; gap: .35rem;
+    padding: .15rem .55rem; border-radius: 11px; font-size: .8rem; line-height: 1.4; }
+  .st-badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+  .st-wait { background: #f0f2f5; color: #98a2b3; }
+  .st-on   { background: #e9f9f0; color: #067647; }
+  .st-off  { background: #fdecee; color: #d92d20; }
+  .st-warn { background: #fff6e6; color: #b45309; }
+  .mock-tag { margin-left: .35rem; color: #aeb6c2; font-size: .72rem; }
+
+  .srv-ops { display: flex; align-items: center; }
+  .srv-ops a, .srv-ops button { color: #2563eb; background: transparent; border: 0; padding: 0 .55rem;
+    font-size: .84rem; cursor: pointer; text-decoration: none; position: relative; line-height: 1.2; }
+  .srv-ops > *:first-child { padding-left: 0; }
+  .srv-ops > * + *::before { content: ""; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+    width: 1px; height: 11px; background: #e3e8ee; }
+  .srv-ops a:hover, .srv-ops button:hover { text-decoration: underline; }
+  .srv-ops .danger { color: #d9480f; }
+  .srv-ops button:disabled { color: #b6bcc6; cursor: default; text-decoration: none; }
+  .srv-more { position: relative; display: inline-flex; }
+  .srv-more-btn { color: #5b6573 !important; padding: 0 .4rem; font-size: 1rem; line-height: 1; letter-spacing: 1px; }
+  .srv-more-btn:hover { color: #2563eb !important; text-decoration: none !important; }
+  .srv-more-menu { position: fixed; z-index: 1090; background: #fff; border: 1px solid #e3e8ee;
+    border-radius: 8px; box-shadow: 0 8px 24px rgba(16,24,40,.14); padding: .3rem; min-width: 116px; display: none; }
+  .srv-more.open .srv-more-menu { display: block; }
+  .srv-more-menu button, .srv-more-menu a { display: block; width: 100%; text-align: left; padding: .42rem .65rem !important;
+    border-radius: 5px; font-size: .84rem; color: #3f4754 !important; white-space: nowrap; text-decoration: none; }
+  .srv-more-menu button:hover, .srv-more-menu a:hover { background: #f1f5fb; text-decoration: none !important; }
+
+  /* 底栏:批量操作 + 分页 */
+  .ecs-footer { flex: none; display: flex; align-items: center; gap: .8rem;
+    padding: .6rem .85rem; border-top: 1px solid #eef1f5; background: #fcfcfd; }
+  .ecs-bulk { display: flex; align-items: center; gap: .6rem; color: #5b6573; font-size: .85rem; }
+  .ecs-bulk .sel-n { color: #2563eb; font-weight: 600; }
+  .ecs-bulk .btn { --bs-btn-padding-y: .2rem; --bs-btn-padding-x: .75rem; --bs-btn-font-size: .83rem; }
+  /* 未选中(禁用)时统一灰掉,不再带绿/红描边色 */
+  .ecs-bulk .btn:disabled { color: #aeb6c2; border-color: #e3e8ee; background: #f7f9fc; opacity: 1; }
+  /* 批量「更多」菜单(向上弹) */
+  .bulk-more { position: relative; display: inline-flex; }
+  .bulk-more-menu { position: absolute; bottom: calc(100% + 4px); left: 0; z-index: 1090; background: #fff;
+    border: 1px solid #e3e8ee; border-radius: 8px; box-shadow: 0 8px 24px rgba(16,24,40,.14);
+    padding: .3rem; min-width: 140px; display: none; }
+  .bulk-more.open .bulk-more-menu { display: block; }
+  .bulk-more-menu button { display: block; width: 100%; text-align: left; border: 0; background: transparent;
+    padding: .42rem .65rem; border-radius: 5px; font-size: .85rem; color: #3f4754; cursor: pointer; white-space: nowrap; }
+  .bulk-more-menu button:hover { background: #f1f5fb; }
+  .ecs-footer .spacer { flex: 1; }
+  .ecs-pager { display: flex; align-items: center; gap: .35rem; color: #5b6573; font-size: .84rem; }
+  .ecs-pager .total { margin-right: .5rem; color: #8a93a0; }
+  .ecs-pager #pg-list { display: inline-flex; gap: .25rem; }
+  .ecs-pager button { min-width: 28px; height: 28px; border: 1px solid #e3e8ee; background: #fff;
+    border-radius: 6px; color: #5b6573; cursor: pointer; padding: 0 .45rem; transition: all .12s; }
+  .ecs-pager button:hover:not(:disabled) { border-color: #93b4f5; color: #2563eb; }
+  .ecs-pager button.cur { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .ecs-pager button:disabled { color: #c4ccd6; cursor: default; }
+  .ecs-pager select { height: 28px; border: 1px solid #e3e8ee; border-radius: 6px; font-size: .82rem;
+    color: #5b6573; padding: 0 .3rem; cursor: pointer; }
+</style>
+
+<div class="ecs-page">
+  <div class="ecs-head">
+    <h4>实例</h4>
+    <span class="help" title="来自 ServerConfigList.txt 的游戏服列表">&#9432;</span>
+    <span class="spacer"></span>
+    <span class="hint">来自 ServerConfigList.txt · 共 <b>{{ len .Servers }}</b> 个服</span>
+  </div>
+
+  {{ if .Err }}
+  <div class="alert alert-warning py-2">读取服务器配置失败:{{ .Err }}</div>
+  {{ end }}
+
+  <div class="ecs-card">
+    <div class="ecs-cardbar">
+      {{ if .IsAdmin }}<a class="btn btn-primary btn-sm" href="/gsconfig/create">+ 创建游戏服</a>{{ end }}
+      <div class="ecs-search">
+        <svg class="si" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+        <input id="srv-q" placeholder="搜索 ID / 区服名 / IP ...">
+      </div>
+      <span class="spacer"></span>
+      <button id="st-refresh" class="ecs-icon-btn" title="刷新状态">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 4v5h-5"/></svg>
+      </button>
+    </div>
+    {{ if .Groups }}
+    <div class="ecs-tabsbar" id="srv-tabs">
+      <button type="button" class="ecs-tab active" data-region="">全部 <span class="cnt">{{ len .Servers }}</span></button>
+      {{ range .Groups }}
+      <button type="button" class="ecs-tab" data-region="{{ .Region }}">{{ .Region }} <span class="cnt">{{ .Count }}</span></button>
+      {{ end }}
+    </div>
+    {{ end }}
+    <div class="ecs-scroll">
+      <table class="ecs-table">
+        <thead>
+          <tr>
+            <th class="col-check"><input type="checkbox" id="check-all"></th>
+            <th class="col-id">ID</th>
+            <th class="col-name">实例名称</th>
+            <th class="col-status">
+              <span class="th-filter">状态
+                <svg class="funnel" id="status-funnel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8v6l-4-2v-4z"/></svg>
+                <span class="filter-menu" id="status-menu">
+                  <button data-v="" class="sel">全部</button>
+                  <button data-v="on">在线</button>
+                  <button data-v="off">离线</button>
+                  <button data-v="warn">异常</button>
+                </span>
+              </span>
+            </th>
+            <th class="col-type">类型</th>
+            <th class="col-ver">版本</th>
+            <th class="col-battle">所属战场服</th>
+            <th class="col-ip">主IPv4地址</th>
+            <th class="col-ops">操作</th>
+          </tr>
+        </thead>
+        <tbody id="srv-rows">
+          {{ range .Servers }}
+          <tr data-id="{{ .ID }}" data-status="wait" data-region="{{ index $.RegionOf .ID }}" data-text="{{ .ID }} {{ .Desc }} {{ .IP }} {{ .OutIP }}">
+            <td class="col-check"><input type="checkbox" class="row-check" value="{{ .ID }}"></td>
+            <td class="cell-id"><a class="idlink" href="/servers/{{ .ID }}">{{ .ID }}</a></td>
+            <td class="cell-name">
+              <a class="name" href="/servers/{{ .ID }}">{{ .Desc }}</a>{{ with index $.MergedInto .ID }}<span class="merged-wrap"><span class="merged-badge" title="已合入 {{ len . }} 个原服(已迁移到本服)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 0 1 0 10h-2"/><line x1="8" y1="12" x2="16" y2="12"/></svg>已合入 {{ len . }}</span><span class="merged-pop"><div class="mp-title">已合入此服的原服</div>{{ range . }}<a href="/servers/{{ .ID }}">{{ if .Desc }}{{ .Desc }}{{ else }}服{{ .ID }}{{ end }}<span class="mp-id">ID {{ .ID }}</span></a>{{ end }}</span></span>{{ end }}
+            </td>
+            <td class="srv-stat" data-id="{{ .ID }}"><span class="badge st-badge st-wait">检测中…</span></td>
+            <td>{{ with worldType .WorldType }}{{ . }}{{ else }}<span class="empty-dash">—</span>{{ end }}</td>
+            <td class="cell-ver srv-ver" data-id="{{ .ID }}"><span class="empty-dash">检测中…</span></td>
+            <td class="cell-battle">{{ if gt .BattleWorldID 0 }}{{ .BattleWorldID }}{{ else }}<span class="empty-dash">—</span>{{ end }}</td>
+            <td class="cell-ip">
+              <div><span class="iptag pub">公网</span><span class="ip">{{ if .OutIP }}{{ .OutIP }}{{ else }}<span class="empty-dash">—</span>{{ end }}</span></div>
+              <div><span class="iptag pri">私网</span><span class="ip">{{ if .IP }}{{ .IP }}{{ else }}<span class="empty-dash">—</span>{{ end }}</span></div>
+            </td>
+            <td>
+              <div class="srv-ops">
+                <a href="/servers/{{ .ID }}">详情</a>
+                {{ if $.CanControl }}
+                <button class="srv-act" data-id="{{ .ID }}" data-op="start" data-label="启动">启动</button>
+                <button class="srv-act danger" data-id="{{ .ID }}" data-op="stop" data-label="停止">停止</button>
+                <span class="srv-more">
+                  <button class="srv-more-btn" title="更多">&#8943;</button>
+                  <span class="srv-more-menu">
+                    <button class="srv-extra" data-id="{{ .ID }}" data-mode="repair">修复启动</button>
+                    <button class="srv-extra" data-id="{{ .ID }}" data-mode="loadsm">内存启动</button>
+                    <button class="srv-loginlimit" data-id="{{ .ID }}">修改登录限制</button>
+                    {{ if $.IsAdmin }}<a class="srv-extra" href="/servers/{{ .ID }}/terminal" target="_blank" rel="noopener">远程连接</a>{{ end }}
+                  </span>
+                </span>
+                {{ end }}
+              </div>
+            </td>
+          </tr>
+          {{ else }}
+          <tr><td colspan="9" class="text-center text-muted py-4">没有服务器数据</td></tr>
+          {{ end }}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ecs-footer">
+    <div class="ecs-bulk">
+      已选 <span class="sel-n" id="sel-count">0</span> 条
+      {{ if .CanControl }}
+      <button id="bulk-start" class="btn btn-outline-success btn-sm" disabled>启动</button>
+      <button id="bulk-stop" class="btn btn-outline-danger btn-sm" disabled>停止</button>
+      <span class="bulk-more" id="bulk-more">
+        <button id="bulk-more-btn" class="btn btn-outline-secondary btn-sm" title="更多批量操作" disabled>&#8943;</button>
+        <div class="bulk-more-menu">
+          <button id="bulk-loginlimit" type="button">修改登录限制</button>
+        </div>
+      </span>
+      {{ end }}
+    </div>
+    <span class="spacer"></span>
+    <div class="ecs-pager">
+      <span class="total">共计: <span id="total-count">0</span></span>
+      <button id="pg-prev" title="上一页">&lsaquo;</button>
+      <span id="pg-list"></span>
+      <button id="pg-next" title="下一页">&rsaquo;</button>
+      <select id="pg-size">
+        <option value="10">10 条/页</option>
+        <option value="20" selected>20 条/页</option>
+        <option value="50">50 条/页</option>
+        <option value="100">100 条/页</option>
+      </select>
+    </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var canControl = {{ if .CanControl }}true{{ else }}false{{ end }};
+  var allRows = Array.prototype.slice.call(document.querySelectorAll('#srv-rows tr[data-id]'));
+  var qInput = document.getElementById('srv-q');
+  var statusFilter = '';
+  var regionFilter = '';
+  var page = 1, pageSize = 20;
+  var filtered = allRows.slice();
+
+  // ---------- 状态徽章工具 ----------
+  function badge(cls, text, title){
+    return '<span class="badge st-badge ' + cls + '"' +
+      (title ? ' title="' + String(title).replace(/"/g, '&quot;') + '"' : '') + '>' + text + '</span>';
+  }
+
+  // ---------- 过滤 + 分页 ----------
+  function matches(tr){
+    var kw = qInput.value.trim().toLowerCase();
+    if (kw && tr.getAttribute('data-text').toLowerCase().indexOf(kw) < 0) return false;
+    if (statusFilter && tr.getAttribute('data-status') !== statusFilter) return false;
+    if (regionFilter && tr.getAttribute('data-region') !== regionFilter) return false;
+    return true;
+  }
+  function applyFilter(keepSelection){
+    filtered = allRows.filter(matches);
+    if (!keepSelection) clearSelection();
+    page = 1;
+    renderPage();
+  }
+  function renderPage(){
+    var total = filtered.length;
+    var pages = Math.max(1, Math.ceil(total / pageSize));
+    if (page > pages) page = pages;
+    var start = (page - 1) * pageSize, end = start + pageSize;
+    var show = {};
+    filtered.slice(start, end).forEach(function(tr){ show[tr.getAttribute('data-id')] = true; });
+    allRows.forEach(function(tr){
+      tr.style.display = show[tr.getAttribute('data-id')] ? '' : 'none';
+    });
+    document.getElementById('total-count').textContent = total;
+    renderPager(pages);
+  }
+  function renderPager(pages){
+    var list = document.getElementById('pg-list');
+    list.innerHTML = '';
+    function pgBtn(n){
+      var b = document.createElement('button');
+      b.textContent = n; if (n === page) b.className = 'cur';
+      b.addEventListener('click', function(){ page = n; renderPage(); });
+      return b;
+    }
+    // 简单页码:1 … (page-1) page (page+1) … last
+    var nums = [];
+    for (var i = 1; i <= pages; i++){
+      if (i === 1 || i === pages || Math.abs(i - page) <= 1) nums.push(i);
+      else if (nums[nums.length-1] !== '…') nums.push('…');
+    }
+    nums.forEach(function(n){
+      if (n === '…'){ var s = document.createElement('span'); s.textContent = '…'; s.style.padding='0 .2rem'; list.appendChild(s); }
+      else list.appendChild(pgBtn(n));
+    });
+    document.getElementById('pg-prev').disabled = (page <= 1);
+    document.getElementById('pg-next').disabled = (page >= pages);
+  }
+
+  if (qInput) qInput.addEventListener('input', function(){ applyFilter(); });
+
+  // ---------- 按区分组 chip ----------
+  var srvTabs = Array.prototype.slice.call(document.querySelectorAll('#srv-tabs .ecs-tab'));
+  srvTabs.forEach(function(tab){
+    tab.addEventListener('click', function(){
+      srvTabs.forEach(function(x){ x.classList.remove('active'); });
+      tab.classList.add('active');
+      regionFilter = tab.getAttribute('data-region') || '';
+      applyFilter();
+    });
+  });
+  document.getElementById('pg-prev').addEventListener('click', function(){ if (page>1){ page--; renderPage(); } });
+  document.getElementById('pg-next').addEventListener('click', function(){ page++; renderPage(); });
+  document.getElementById('pg-size').addEventListener('change', function(){ pageSize = parseInt(this.value,10)||20; page=1; renderPage(); });
+
+  // ---------- 状态过滤漏斗 ----------
+  var funnel = document.getElementById('status-funnel');
+  var menu = document.getElementById('status-menu');
+  funnel.addEventListener('click', function(e){ e.stopPropagation(); menu.classList.toggle('show'); });
+  document.addEventListener('click', function(){ menu.classList.remove('show'); });
+  menu.addEventListener('click', function(e){ e.stopPropagation(); });
+  menu.querySelectorAll('button').forEach(function(b){
+    b.addEventListener('click', function(){
+      statusFilter = b.getAttribute('data-v');
+      menu.querySelectorAll('button').forEach(function(x){ x.classList.toggle('sel', x===b); });
+      funnel.classList.toggle('on', statusFilter !== '');
+      menu.classList.remove('show');
+      applyFilter();
+    });
+  });
+
+  // ---------- 多选 ----------
+  var checkAll = document.getElementById('check-all');
+  var selCount = document.getElementById('sel-count');
+  var bulkStart = document.getElementById('bulk-start');
+  var bulkStop = document.getElementById('bulk-stop');
+  var bulkMore = document.getElementById('bulk-more');
+  var bulkMoreBtn = document.getElementById('bulk-more-btn');
+  function rowChecks(){ return allRows.map(function(tr){ return tr.querySelector('.row-check'); }).filter(Boolean); }
+  function checkedIds(){
+    return rowChecks().filter(function(c){ return c.checked; }).map(function(c){ return c.value; });
+  }
+  function updateSel(){
+    var ids = checkedIds();
+    selCount.textContent = ids.length;
+    allRows.forEach(function(tr){ tr.classList.toggle('row-sel', tr.querySelector('.row-check').checked); });
+    // 批量按钮:选中里有"非运行中"才可启动,有"非离线"才可停止
+    var sel = allRows.filter(function(tr){ return tr.querySelector('.row-check').checked; });
+    var startable = sel.some(function(tr){ return tr.getAttribute('data-status') !== 'on'; });
+    var stoppable = sel.some(function(tr){ return tr.getAttribute('data-status') !== 'off'; });
+    if (bulkStart) bulkStart.disabled = ids.length === 0 || !startable;
+    if (bulkStop) bulkStop.disabled = ids.length === 0 || !stoppable;
+    if (bulkMoreBtn) bulkMoreBtn.disabled = ids.length === 0;
+    if (bulkMore && ids.length === 0) bulkMore.classList.remove('open');
+    // 全选框状态:依据当前 filtered
+    var fc = filtered.map(function(tr){ return tr.querySelector('.row-check'); });
+    var on = fc.filter(function(c){ return c.checked; }).length;
+    checkAll.checked = fc.length > 0 && on === fc.length;
+    checkAll.indeterminate = on > 0 && on < fc.length;
+  }
+  function clearSelection(){
+    rowChecks().forEach(function(c){ c.checked = false; });
+    if (checkAll){ checkAll.checked = false; checkAll.indeterminate = false; }
+    updateSel();
+  }
+  rowChecks().forEach(function(c){ c.addEventListener('change', updateSel); });
+  if (checkAll) checkAll.addEventListener('change', function(){
+    var on = checkAll.checked;
+    filtered.forEach(function(tr){ tr.querySelector('.row-check').checked = on; });
+    updateSel();
+  });
+
+  // ---------- 状态探测 ----------
+  var cells = Array.prototype.slice.call(document.querySelectorAll('.srv-stat[data-id]'));
+  var verCells = Array.prototype.slice.call(document.querySelectorAll('.srv-ver[data-id]'));
+  var refreshBtn = document.getElementById('st-refresh');
+  function setVersion(id, ver){
+    var td = document.querySelector('.srv-ver[data-id="' + id + '"]');
+    if (!td) return;
+    if (ver) { td.textContent = ver; }            // 版本串直接设文本,避免任何注入
+    else { td.innerHTML = '<span class="empty-dash">—</span>'; }
+  }
+  var killedSet = {}; // 被强制停止过的服(后端 /servers/status 返回),普通启动会被拦截
+  function statusOf(st){
+    if (!st) return ['st-wait', '未知', 'unknown', ''];
+    if (st.mask === 7) return ['st-on', '运行中', 'on', ''];
+    if (st.mask === -1) return ['st-off', '离线/不可达', 'off', st.err || '无法连接或探测失败'];
+    if (st.mask === 0) return ['st-off', '未运行', 'off', '机器在线,但 DB/HttpAgent/GameServer 三组件均未启动'];
+    return ['st-warn', '异常·部分启动', 'warn', '状态码 ' + st.mask + ':三组件未全部就绪(7=全在)'];
+  }
+  var pending = {}; // id -> {label,target,deadline}:启停过程态,手动刷新时保持「…中」不被中间态冲掉
+  function loadStatus(){
+    if (!cells.length) return;
+    cells.forEach(function(td){ td.innerHTML = badge('st-wait', '检测中…'); });
+    verCells.forEach(function(td){ td.innerHTML = '<span class="empty-dash">检测中…</span>'; });
+    if (refreshBtn){ refreshBtn.classList.add('spin'); }
+    fetch('/servers/status').then(function(r){
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function(data){
+      var sts = data.statuses || {};
+      killedSet = data.killed || {};
+      var mockTag = data.mock ? '<span class="mock-tag">mock</span>' : '';
+      cells.forEach(function(td){
+        var id = td.getAttribute('data-id');
+        var meta = statusOf(sts[id]);
+        setVersion(id, (sts[id] || {}).version); // 版本随状态同次返回填充,与启停过程态无关
+        // 启停过程态:未到目标态且未超时 → 仍显示「…中」,不被探测到的中间态冲掉(到目标态/超时则清除)。
+        var p = pending[id];
+        if (p && Date.now() < p.deadline && meta[2] !== p.target) {
+          td.innerHTML = badge('st-wait', p.label + '中…');
+          var trp = td.closest('tr'); if (trp) trp.setAttribute('data-status', 'wait');
+          return;
+        }
+        if (p) delete pending[id];
+        td.innerHTML = badge(meta[0], meta[1], meta[3]) + (data.mock ? mockTag : '');
+        var tr = td.closest('tr'); if (tr) tr.setAttribute('data-status', meta[2]);
+        // 运行中禁启动、离线/未运行禁停止;异常/未知两者都可点
+        var sb = document.querySelector('.srv-act[data-id="' + id + '"][data-op="start"]');
+        var tb = document.querySelector('.srv-act[data-id="' + id + '"][data-op="stop"]');
+        if (sb) sb.disabled = (meta[2] === 'on');
+        if (tb) tb.disabled = (meta[2] === 'off');
+      });
+      if (statusFilter) applyFilter(true);
+      updateSel();
+    }).catch(function(e){
+      cells.forEach(function(td){ td.innerHTML = badge('st-off', '检测失败', e.message); });
+      verCells.forEach(function(td){ td.innerHTML = '<span class="empty-dash">—</span>'; });
+    }).finally(function(){
+      if (refreshBtn){ refreshBtn.classList.remove('spin'); }
+    });
+  }
+  if (refreshBtn) refreshBtn.addEventListener('click', loadStatus);
+
+  // ---------- 单行启停 ----------
+  function runAction(id, op, label, query, onDone){
+    var cell = document.querySelector('.srv-stat[data-id="' + id + '"]');
+    if (cell) cell.innerHTML = badge('st-wait', label + '中…');
+    return fetch('/servers/' + id + '/' + op + (query || ''), { method: 'POST' })
+      .then(function(r){ return r.json(); })
+      .then(function(data){ if (onDone) onDone(data); return data; });
+  }
+  // 执行一次行内操作(禁用该行按钮 → 请求 → 完成后重测状态)
+  function rowAction(id, op, query, label){
+    var acts = document.querySelectorAll('.srv-act[data-id="' + id + '"]');
+    acts.forEach(function(x){ x.disabled = true; });
+    // 一点击就进入过程态(请求可能很久,如优雅停服/启动自动修复):此刻起手动刷新也稳定显示「…中」。
+    pending[id] = { label: label, target: (op === 'start' ? 'on' : 'off'), deadline: Date.now() + 120000 };
+    runAction(id, op, label, query, function(data){
+      if (data.ok) { pollOne(id, op, label); return; }          // 成功 → 轮询到真·目标态
+      delete pending[id];                                       // 失败 → 退出过程态
+      if (data.needRepair) { promptRepair(id); loadStatus(); return; } // 强杀拦截兜底
+      uiAlert({ title: '服 ' + id + ' ' + label + '失败', message: data.error || '操作失败',
+        log: data.output || '', danger: true, wide: true });   // 失败弹窗带远程日志,便于定位原因
+      loadStatus();
+    }).catch(function(e){ delete pending[id]; uiAlert({ title: '请求失败', message: e.message, danger: true }); loadStatus(); })
+      .finally(function(){ acts.forEach(function(x){ x.disabled=false; }); });
+  }
+  // 启停后轮询该服状态直到真·目标态(启动→运行中 / 停止→离线),期间显示「…中」。
+  // 优雅停服/开服是个过程,单探一次会误判仍在运行;这里只探该单服,不触发全量探测。
+  function pollOne(id, op, label){
+    var cell = document.querySelector('.srv-stat[data-id="' + id + '"]');
+    var target = (op === 'start') ? 'on' : 'off';
+    function show(){ if (cell) cell.innerHTML = badge('st-wait', label + '中…'); }
+    function done(){ delete pending[id]; loadStatus(); } // 到目标态/超时 → 清过程态,显示真实状态
+    function tick(){
+      var p = pending[id];
+      if (!p || Date.now() > p.deadline) { done(); return; } // 超时按真实状态展示
+      fetch('/servers/' + id + '/status').then(function(r){ return r.json(); }).then(function(d){
+        if (d && d.status && statusOf(d.status)[2] === target) { done(); return; }
+        show(); setTimeout(tick, 3000);
+      }).catch(function(){ show(); setTimeout(tick, 3000); }); // 探测失败保持「…中」继续轮询
+    }
+    show(); setTimeout(tick, 3000);
+  }
+  // 强杀过的服:选修复启动 / 内存启动
+  function promptRepair(id){
+    uiConfirm({ title: '该服曾被强制停止', cancelText: '取消',
+      message: '强杀后需用修复或内存方式启动:\n• 修复启动:repair.sh 重新拉起\n• 内存启动:加载共享内存恢复',
+      buttons: [ { label: '修复启动', value: 'repair' }, { label: '内存启动', value: 'loadsm' } ]
+    }).then(function(v){ if (!v) return; rowAction(id, 'start', '?mode=' + v, v === 'repair' ? '修复启动' : '内存启动'); });
+  }
+  document.querySelectorAll('.srv-act').forEach(function(b){
+    b.addEventListener('click', function(){
+      var id = b.getAttribute('data-id'), op = b.getAttribute('data-op');
+      if (op === 'stop') {
+        uiConfirm({ title: '停止服 ' + id, cancelText: '取消',
+          message: '选择停止方式:\n• 正常停止:优雅关闭各组件\n• 强制停止:kill -9 强杀进程',
+          buttons: [ { label: '正常停止', value: 'graceful' }, { label: '强制停止', value: 'force', danger: true } ]
+        }).then(function(v){ if (!v) return; rowAction(id, 'stop', v === 'force' ? '?mode=force' : '', v === 'force' ? '强制停止' : '停止'); });
+      } else if (killedSet[id]) {
+        promptRepair(id); // 强杀过的服 → 拦截普通启动,改选修复/内存
+      } else {
+        uiConfirm({ title: '启动服务器', message: '确认对服 ' + id + ' 执行【启动】?', okText: '启动' })
+          .then(function(ok){ if (ok) rowAction(id, 'start', '', '启动'); });
+      }
+    });
+  });
+  // ⋯ 更多菜单:修复启动 / 内存启动(fixed 定位,避免被表格滚动裁剪)
+  function closeMoreMenus(){ document.querySelectorAll('.srv-more.open').forEach(function(m){ m.classList.remove('open'); }); }
+  document.querySelectorAll('.srv-more-btn').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      var wrap = btn.parentNode, menu = wrap.querySelector('.srv-more-menu');
+      var wasOpen = wrap.classList.contains('open');
+      closeMoreMenus();
+      if (!wasOpen){
+        wrap.classList.add('open');
+        var r = btn.getBoundingClientRect();
+        menu.style.top = (r.bottom + 4) + 'px';
+        menu.style.left = (r.right - menu.offsetWidth) + 'px';
+      }
+    });
+  });
+  // 仅带 data-mode 的菜单项(修复/内存启动)走启动动作;远程连接是普通链接,不挂此处理。
+  document.querySelectorAll('.srv-extra[data-mode]').forEach(function(b){
+    b.addEventListener('click', function(e){
+      e.stopPropagation();
+      closeMoreMenus();
+      var id = b.getAttribute('data-id'), mode = b.getAttribute('data-mode');
+      var label = mode === 'repair' ? '修复启动' : '内存启动';
+      uiConfirm({ title: label, message: '确认对服 ' + id + ' 执行【' + label + '】?', okText: label })
+        .then(function(ok){ if (ok) rowAction(id, 'start', '?mode=' + mode, label); });
+    });
+  });
+  // 「已合入」徽章:点开列出被合并进来的原服(fixed 定位,避免被表格滚动裁剪)
+  function closeMergedPops(){ document.querySelectorAll('.merged-wrap.open').forEach(function(m){ m.classList.remove('open'); }); }
+  document.querySelectorAll('.merged-badge').forEach(function(badge){
+    badge.addEventListener('click', function(e){
+      e.stopPropagation();
+      var wrap = badge.parentNode, pop = wrap.querySelector('.merged-pop');
+      var wasOpen = wrap.classList.contains('open');
+      closeMergedPops(); closeMoreMenus();
+      if (!wasOpen){
+        wrap.classList.add('open');
+        var r = badge.getBoundingClientRect();
+        var margin = 10;
+        var below = window.innerHeight - r.bottom - margin;  // 徽章下方可用高度
+        var above = r.top - margin;                          // 徽章上方可用高度
+        pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + 'px';
+        if (below >= above) {                                // 下方更宽 → 朝下展开
+          pop.style.top = (r.bottom + 4) + 'px';
+          pop.style.bottom = 'auto';
+          pop.style.maxHeight = below + 'px';
+        } else {                                             // 上方更宽 → 朝上展开
+          pop.style.top = 'auto';
+          pop.style.bottom = (window.innerHeight - r.top + 4) + 'px';
+          pop.style.maxHeight = above + 'px';
+        }
+      }
+    });
+  });
+
+  document.addEventListener('click', function(){ closeMoreMenus(); closeMergedPops(); });
+  var scrollBox = document.querySelector('.ecs-scroll');
+  if (scrollBox) scrollBox.addEventListener('scroll', function(){ closeMoreMenus(); closeMergedPops(); });
+
+  // ---------- 批量启停 ----------
+  function bulkAction(op, label){
+    var sel = allRows.filter(function(tr){ return tr.querySelector('.row-check').checked; });
+    // 只对有意义的服执行:启动跳过运行中,停止跳过离线
+    var targets = sel.filter(function(tr){
+      var st = tr.getAttribute('data-status');
+      return op === 'start' ? st !== 'on' : st !== 'off';
+    });
+    var ids = targets.map(function(tr){ return tr.getAttribute('data-id'); });
+    if (!ids.length) return;
+    var skipped = sel.length - ids.length;
+    var base = '确认对 ' + ids.length + ' 台服务器执行【' + label + '】?';
+    if (skipped > 0) base += '\n(已跳过 ' + skipped + ' 台' + (op === 'start' ? '运行中' : '离线') + '的服)';
+    function exec(mode, lbl){
+      if (bulkStart) bulkStart.disabled = true;
+      if (bulkStop) bulkStop.disabled = true;
+      var target = (op === 'start') ? 'on' : 'off';
+      // 一点击就给所有目标服进入过程态:批量请求很久,期间手动刷新也稳定显示「…中」。
+      ids.forEach(function(id){ pending[id] = { label: lbl, target: target, deadline: Date.now() + 120000 }; });
+      var body = 'op=' + encodeURIComponent(op) + '&ids=' + encodeURIComponent(ids.join(',')) + (mode ? '&mode=' + mode : '');
+      fetch('/servers/batch', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: body })
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+          if (!data.ok){ ids.forEach(function(id){ delete pending[id]; }); uiAlert({ title: lbl + '失败', message: data.error || '操作失败', danger: true }); return; }
+          var res = data.results || [];
+          var fail = res.filter(function(x){ return !x.ok; });
+          var summary = lbl + '完成:成功 ' + (res.length - fail.length) + ' / ' + res.length;
+          var log = fail.length
+            ? '失败 ' + fail.length + ' 台:\n' + fail.map(function(x){ return '服 ' + x.id + ':' + (x.error || ''); }).join('\n')
+            : '';
+          uiAlert({ title: '批量' + lbl + '结果', message: summary, log: log, danger: fail.length > 0, wide: fail.length > 0 });
+          res.forEach(function(x){ if (x.ok) { pollOne(x.id, op, lbl); } else { delete pending[x.id]; } }); // 成功的轮询到目标态,失败的退出过程态
+          clearSelection();
+        })
+        .catch(function(e){ ids.forEach(function(id){ delete pending[id]; }); uiAlert({ title: '请求失败', message: e.message, danger: true }); })
+        .finally(function(){ updateSel(); loadStatus(); });
+    }
+    if (op === 'stop') {
+      uiConfirm({ title: '批量停止', cancelText: '取消',
+        message: base + '\n\n选择停止方式:\n• 正常停止:优雅关闭\n• 强制停止:kill -9 强杀',
+        buttons: [ { label: '正常停止', value: 'graceful' }, { label: '强制停止', value: 'force', danger: true } ]
+      }).then(function(v){ if (!v) return; exec(v === 'force' ? 'force' : '', v === 'force' ? '强制停止' : '停止'); });
+    } else {
+      uiConfirm({ title: '批量启动', message: base, okText: '启动' }).then(function(ok){ if (ok) exec('', '启动'); });
+    }
+  }
+  if (bulkStart) bulkStart.addEventListener('click', function(){ bulkAction('start', '启动'); });
+  if (bulkStop) bulkStop.addEventListener('click', function(){ bulkAction('stop', '停止'); });
+
+  // ---------- 批量「更多」菜单:修改登录限制 ----------
+  if (bulkMoreBtn) bulkMoreBtn.addEventListener('click', function(e){
+    e.stopPropagation();
+    if (bulkMoreBtn.disabled) return;
+    bulkMore.classList.toggle('open');
+  });
+  document.addEventListener('click', function(){ if (bulkMore) bulkMore.classList.remove('open'); });
+  var bulkLL = document.getElementById('bulk-loginlimit');
+  if (bulkLL) bulkLL.addEventListener('click', function(){
+    if (bulkMore) bulkMore.classList.remove('open');
+    var ids = allRows.filter(function(tr){ return tr.querySelector('.row-check').checked; })
+                     .map(function(tr){ return tr.getAttribute('data-id'); });
+    changeLoginLimit(ids);
+  });
+  // 单行 ⋯ 菜单里的「修改登录限制」:对该服一台执行
+  document.querySelectorAll('.srv-loginlimit').forEach(function(b){
+    b.addEventListener('click', function(e){
+      e.stopPropagation();
+      closeMoreMenus();
+      changeLoginLimit([b.getAttribute('data-id')]);
+    });
+  });
+
+  // 登录限制档位(0=开放;1~5 逐级收紧;99=最严)
+  var LIMIT_OPTS = [
+    { v: '0', t: '0 · 开放(无限制)' }, { v: '1', t: '1' }, { v: '2', t: '2' },
+    { v: '3', t: '3' }, { v: '4', t: '4' }, { v: '5', t: '5' }, { v: '99', t: '99 · 最严' }
+  ];
+  function changeLoginLimit(ids){
+    if (!ids || !ids.length) return;
+    var optsHtml = LIMIT_OPTS.map(function(o){ return '<option value="' + o.v + '">' + o.t + '</option>'; }).join('');
+    var html = '<div style="text-align:left">对选中的 <b>' + ids.length + '</b> 台服设置登录限制:'
+      + '<select id="ll-pick" class="form-select form-select-sm" style="margin-top:.5rem">' + optsHtml + '</select>'
+      + '<div style="color:#9aa3af;font-size:.78rem;margin-top:.4rem">执行 gameserver_change_login_limit.py -limit=所选值</div></div>';
+    uiConfirm({ title: '修改登录限制', html: html, okText: '确认修改', cancelText: '取消' }).then(function(ok){
+      if (!ok) return;
+      var limit = (document.getElementById('ll-pick') || {}).value || '0';
+      var body = 'ids=' + encodeURIComponent(ids.join(',')) + '&limit=' + encodeURIComponent(limit);
+      fetch('/servers/batch/loginlimit', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+          if (!data.ok){ uiAlert({ title: '修改登录限制失败', message: data.error || '操作失败', danger: true }); return; }
+          var res = data.results || [];
+          var fail = res.filter(function(x){ return !x.ok; });
+          var summary = '登录限制=' + limit + ' 已下发:成功 ' + (res.length - fail.length) + ' / ' + res.length;
+          var log = fail.length ? '失败 ' + fail.length + ' 台:\n' + fail.map(function(x){ return '服 ' + x.id + ':' + (x.error || ''); }).join('\n') : '';
+          uiAlert({ title: '批量修改登录限制结果', message: summary, log: log, danger: fail.length > 0, wide: fail.length > 0 });
+        })
+        .catch(function(e){ uiAlert({ title: '请求失败', message: e.message, danger: true }); });
+    });
+  }
+
+  // ---------- 初始化 ----------
+  applyFilter();
+  loadStatus();
+})();
+</script>
+{{ template "foot" . }}

@@ -1,0 +1,254 @@
+{{ template "head" . }}
+<style>
+  .sd-page { max-width: 1320px; }
+  /* 顶部条 */
+  .sd-head { display: flex; align-items: center; gap: .7rem; flex-wrap: wrap; margin-bottom: .6rem; }
+  .sd-back { color: #6b7682; text-decoration: none; font-size: 1.1rem; line-height: 1; }
+  .sd-back:hover { color: #2563eb; }
+  .sd-head h4 { margin: 0; font-weight: 600; font-size: 1.18rem; }
+  .sd-head .sub { color: #9aa3af; font-size: .8rem; font-variant-numeric: tabular-nums; }
+  .sd-head .spacer { flex: 1; }
+  .sd-actions { display: flex; gap: .5rem; }
+  .sd-actions .btn { min-width: 76px; }
+
+  /* 状态胶囊 */
+  .st-badge { font-weight: 500; display: inline-flex; align-items: center; gap: .35rem;
+    padding: .15rem .6rem; border-radius: 11px; font-size: .82rem; }
+  .st-badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+  .st-on  { background: #e9f9f0; color: #067647; }
+  .st-off { background: #fdecee; color: #d92d20; }
+  .st-warn{ background: #fff6e6; color: #b45309; }
+  .st-wait{ background: #f0f2f5; color: #98a2b3; }
+  .mock-tag { margin-left: .35rem; color: #aeb6c2; font-size: .72rem; }
+
+  /* Tab 条 */
+  .sd-tabs { display: flex; gap: .2rem; border-bottom: 1px solid #e8ebf1; margin-bottom: 1rem; }
+  .sd-tab { border: 0; background: transparent; padding: .55rem .9rem; font-size: .9rem; color: #5b6573;
+    cursor: pointer; position: relative; top: 1px; border-bottom: 2px solid transparent; }
+  .sd-tab:hover { color: #2563eb; }
+  .sd-tab.active { color: #2563eb; font-weight: 600; border-bottom-color: #2563eb; }
+  .sd-pane { display: none; }
+  .sd-pane.active { display: block; }
+
+  /* 两栏(概览) */
+  .sd-body { display: flex; gap: 1rem; align-items: flex-start; }
+  .sd-main { flex: 1; min-width: 0; }
+  .sd-side { width: 320px; flex: none; }
+  @media (max-width: 1100px){ .sd-body { flex-direction: column; } .sd-side { width: 100%; } }
+
+  /* 卡片 */
+  .sd-card, .sd-panel { background: #fff; border: 1px solid #e8ebf1; border-radius: 10px;
+    margin-bottom: 1rem; box-shadow: 0 1px 2px rgba(16,24,40,.04); }
+  .sd-card-hd, .sd-panel-hd { font-weight: 600; font-size: .92rem; color: #1f2937;
+    padding: .75rem 1.1rem; border-bottom: 1px solid #eef1f5; }
+  .sd-card-bd { padding: .3rem 1.1rem .8rem; }
+
+  /* 配置详情:卡片两列排,避免一长条下滚 */
+  .sd-colcards { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 0 1rem; align-items: start; }
+  @media (max-width: 1100px){ .sd-colcards { grid-template-columns: 1fr; } }
+
+  /* 字段网格:标签在上、值在下 */
+  .sd-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); column-gap: 2.2rem; }
+  .sd-f { padding: .6rem 0; border-bottom: 1px solid #f4f6f9; min-width: 0; }
+  .sd-f .k { color: #8a93a0; font-size: .79rem; margin-bottom: 3px; }
+  .sd-f .v { color: #1f2937; font-size: .9rem; word-break: break-all; }
+  .sd-f .v.mono { font-variant-numeric: tabular-nums; }
+
+  /* 全部字段:更密的三列 */
+  .sd-all .sd-grid { grid-template-columns: repeat(3, minmax(0,1fr)); column-gap: 1.6rem; }
+  @media (max-width: 1100px){ .sd-all .sd-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  .sd-all .sd-f .v { font-size: .84rem; }
+
+  /* 右侧面板 */
+  .sd-panel-bd { padding: .7rem 1.1rem .9rem; }
+  .sd-kv { display: flex; justify-content: space-between; gap: .8rem; padding: .35rem 0; font-size: .86rem; }
+  .sd-kv .k { color: #8a93a0; flex: none; }
+  .sd-kv .v { color: #344054; text-align: right; font-variant-numeric: tabular-nums; word-break: break-all; }
+  .sd-status-big { display: flex; align-items: center; gap: .6rem; margin-bottom: .5rem; }
+  .sd-mask { color: #98a2b3; font-size: .78rem; }
+  .sd-side-actions { display: flex; gap: .5rem; margin-top: .7rem; }
+  .sd-side-actions .btn { flex: 1; }
+  .sd-edit { display: inline-flex; align-items: center; gap: .3rem; color: #2563eb; text-decoration: none; font-size: .86rem; }
+  .sd-edit:hover { text-decoration: underline; }
+
+  .sd-log { display: none; margin: 0 0 1rem; }
+  .sd-log pre { background: #0b1020; color: #d6e2ff; border-radius: .5rem; padding: .7rem .9rem;
+    max-height: 280px; overflow: auto; font-size: .8rem; margin: 0; white-space: pre-wrap; }
+</style>
+
+<div class="sd-page">
+  <div class="sd-head">
+    <a href="/servers" class="sd-back" title="返回">&lsaquo;</a>
+    <h4>{{ .S.Desc }}</h4>
+    <span class="badge st-badge {{ .Status.Class }}">{{ .Status.Label }}</span>
+    <span class="sub">ID: {{ .S.ID }}</span>
+    <span class="spacer"></span>
+    <div class="sd-actions">
+      {{ if .IsAdmin }}<a class="btn btn-sm btn-outline-primary" href="/servers/{{ .S.ID }}/terminal" target="_blank">远程连接</a>{{ end }}
+      <button id="btn-refresh" class="btn btn-sm btn-outline-secondary">刷新</button>
+      {{ if .CanControl }}
+      <button id="btn-start" class="btn btn-sm btn-success"{{ if eq .Status.Class "st-on" }} disabled{{ end }}>启动</button>
+      <button id="btn-stop" class="btn btn-sm btn-outline-danger"{{ if eq .Status.Class "st-off" }} disabled{{ end }}>停止</button>
+      {{ end }}
+    </div>
+  </div>
+
+  <div class="sd-tabs">
+    <button class="sd-tab active" data-tab="overview">概览</button>
+    <button class="sd-tab" data-tab="config">配置详情</button>
+    <button class="sd-tab" data-tab="all">全部字段</button>
+  </div>
+
+  {{ if .CanControl }}<div id="sd-log" class="sd-log"><pre id="sd-log-pre"></pre></div>{{ end }}
+
+  <!-- 概览 -->
+  <div class="sd-pane active" id="pane-overview">
+    <div class="sd-body">
+      <div class="sd-main">
+        {{ range .OverviewGroups }}
+        <div class="sd-card">
+          <div class="sd-card-hd">{{ .Title }}</div>
+          <div class="sd-card-bd"><div class="sd-grid">
+            {{ range .Fields }}
+            <div class="sd-f"><div class="k">{{ .Label }}</div><div class="v{{ if .Mono }} mono{{ end }}">{{ .Value }}</div></div>
+            {{ end }}
+          </div></div>
+        </div>
+        {{ end }}
+      </div>
+
+      <div class="sd-side">
+        <div class="sd-panel">
+          <div class="sd-panel-hd">当前状态</div>
+          <div class="sd-panel-bd">
+            <div class="sd-status-big">
+              <span class="badge st-badge {{ .Status.Class }}">{{ .Status.Label }}</span>
+              {{ if .Status.Mock }}<span class="mock-tag">mock</span>{{ end }}
+            </div>
+            <div class="sd-mask">status.sh 掩码 = {{ .Status.Mask }}(7 = DB + HttpAgent + GameServer 全在)</div>
+            {{ if .Status.Err }}<div class="text-danger small mt-1">{{ .Status.Err }}</div>{{ end }}
+          </div>
+        </div>
+
+        <div class="sd-panel">
+          <div class="sd-panel-hd">数据库</div>
+          <div class="sd-panel-bd">
+            <div class="sd-kv"><span class="k">库名</span><span class="v">{{ .DBName }}</span></div>
+            <div class="sd-kv"><span class="k">MySQL</span><span class="v">{{ .DBConn }}</span></div>
+          </div>
+        </div>
+
+        <div class="sd-panel">
+          <div class="sd-panel-hd">Redis</div>
+          <div class="sd-panel-bd">
+            <div class="sd-kv"><span class="k">主</span><span class="v">{{ .RedisMain }}</span></div>
+            <div class="sd-kv"><span class="k">扩展</span><span class="v">{{ .RedisEx }}</span></div>
+          </div>
+        </div>
+
+        {{ if .IsAdmin }}
+        <div class="sd-panel">
+          <div class="sd-panel-bd">
+            <a class="sd-edit" href="{{ .EditURL }}">在「游戏服配置」中编辑此服 &rsaquo;</a>
+          </div>
+        </div>
+        {{ end }}
+      </div>
+    </div>
+  </div>
+
+  <!-- 配置详情 -->
+  <div class="sd-pane" id="pane-config">
+    <div class="sd-colcards">
+      {{ range .ConfigGroups }}
+      <div class="sd-card">
+        <div class="sd-card-hd">{{ .Title }}</div>
+        <div class="sd-card-bd"><div class="sd-grid">
+          {{ range .Fields }}
+          <div class="sd-f"><div class="k">{{ .Label }}</div><div class="v{{ if .Mono }} mono{{ end }}">{{ .Value }}</div></div>
+          {{ end }}
+        </div></div>
+      </div>
+      {{ end }}
+    </div>
+  </div>
+
+  <!-- 全部字段 -->
+  <div class="sd-pane" id="pane-all">
+    <div class="sd-card sd-all">
+      <div class="sd-card-hd">全部字段({{ len .AllFields }})</div>
+      <div class="sd-card-bd"><div class="sd-grid">
+        {{ range .AllFields }}
+        <div class="sd-f"><div class="k">{{ .Label }}</div><div class="v{{ if .Mono }} mono{{ end }}">{{ .Value }}</div></div>
+        {{ end }}
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // Tab 切换
+  var tabs = document.querySelectorAll('.sd-tab');
+  var panes = document.querySelectorAll('.sd-pane');
+  tabs.forEach(function(t){
+    t.addEventListener('click', function(){
+      tabs.forEach(function(x){ x.classList.toggle('active', x===t); });
+      var key = t.getAttribute('data-tab');
+      panes.forEach(function(p){ p.classList.toggle('active', p.id === 'pane-' + key); });
+    });
+  });
+
+  var id = {{ .S.ID }};
+  var refresh = document.getElementById('btn-refresh');
+  if (refresh) refresh.addEventListener('click', function(){ location.reload(); });
+
+  var logBox = document.getElementById('sd-log');
+  var logPre = document.getElementById('sd-log-pre');
+  var btnStart = document.getElementById('btn-start');
+  var btnStop = document.getElementById('btn-stop');
+  var initStart = btnStart ? btnStart.disabled : false; // 渲染时按状态禁用(运行中禁启动)
+  var initStop = btnStop ? btnStop.disabled : false;    // 离线禁停止
+  function setDisabled(v){
+    if (btnStart) btnStart.disabled = v || initStart;
+    if (btnStop) btnStop.disabled = v || initStop;
+  }
+
+  function runOp(path, label){
+    setDisabled(true);
+    if (logBox){ logBox.style.display = 'block'; logPre.textContent = label + '中…\n'; }
+    fetch(path, { method: 'POST' })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if (logPre) logPre.textContent = (data.output || '') + (data.error ? '\n[错误] ' + data.error : '');
+        if (data.ok) {
+          if (logPre) logPre.textContent += '\n\n✔ ' + label + '已下发,3 秒后刷新查看最新状态…';
+          setTimeout(function(){ location.reload(); }, 3000);
+        } else { setDisabled(false); if (data.needRepair) promptRepair(); }
+      })
+      .catch(function(e){ if (logPre) logPre.textContent = '请求失败:' + e.message; setDisabled(false); });
+  }
+  var forceKilled = {{ if .ForceKilled }}true{{ else }}false{{ end }};
+  function promptRepair(){
+    uiConfirm({ title: '该服曾被强制停止', cancelText: '取消',
+      message: '强杀后需用修复或内存方式启动:\n• 修复启动:repair.sh 重新拉起\n• 内存启动:加载共享内存恢复',
+      buttons: [ { label: '修复启动', value: 'repair' }, { label: '内存启动', value: 'loadsm' } ]
+    }).then(function(v){ if (!v) return; runOp('/servers/' + id + '/start?mode=' + v, v === 'repair' ? '修复启动' : '内存启动'); });
+  }
+  if (btnStart) btnStart.addEventListener('click', function(){
+    if (forceKilled) { promptRepair(); return; }
+    uiConfirm({ title: '启动服务器', message: '确认对服 ' + id + ' 执行【启动】?', okText: '启动' })
+      .then(function(ok){ if (ok) runOp('/servers/' + id + '/start', '启动'); });
+  });
+  if (btnStop) btnStop.addEventListener('click', function(){
+    uiConfirm({ title: '停止服 ' + id, cancelText: '取消',
+      message: '选择停止方式:\n• 正常停止:踢人后依次优雅关闭各组件\n• 强制停止:kill -9 直接强杀进程',
+      buttons: [ { label: '正常停止', value: 'graceful' }, { label: '强制停止', value: 'force', danger: true } ]
+    }).then(function(v){
+      if (!v) return;
+      runOp('/servers/' + id + '/stop' + (v === 'force' ? '?mode=force' : ''), v === 'force' ? '强制停止' : '停止');
+    });
+  });
+})();
+</script>
+{{ template "foot" . }}

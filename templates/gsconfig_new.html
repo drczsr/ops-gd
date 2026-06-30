@@ -1,0 +1,20 @@
+{{ template "head" . }}
+<a href="/gsconfig" class="btn btn-sm btn-outline-secondary mb-3">← 返回列表</a>
+<h4 class="mb-3">新增服</h4>
+{{ if .Err }}<div class="alert alert-danger py-2">{{ .Err }}</div>{{ end }}
+<div class="card wo-card" style="max-width:820px;">
+  <div class="card-body">
+    <form method="post" action="/gsconfig/new">
+      {{ range $c := .Cols }}
+      <div class="mb-2 row">
+        <label class="col-sm-4 col-form-label">{{ $c.Name }} <span class="text-muted small">{{ $c.GameType }}</span></label>
+        <div class="col-sm-8">
+          <input class="form-control form-control-sm" name="{{ $c.Name }}" value="{{ index $.Tmpl $c.Name }}">
+        </div>
+      </div>
+      {{ end }}
+      <button class="btn btn-primary mt-2">创建</button>
+    </form>
+  </div>
+</div>
+{{ template "foot" . }}

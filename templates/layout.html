@@ -1,0 +1,368 @@
+{{ define "head" }}
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ .Title }} - 运维工单</title>
+  <link href="/static/bootstrap.min.css" rel="stylesheet">
+  <script src="/static/htmx.min.js"></script>
+  <style>
+    body { font-size: 15px; }
+    .navbar-brand { font-weight: 600; }
+    .form-label { font-weight: 600; margin-bottom: .25rem; }
+    .card { box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+    h4 { font-weight: 600; }
+
+    /* 服务器选择面板 */
+    .srv-picker { border: 1px solid #dee2e6; border-radius: .5rem; background: #fff; }
+    .srv-toolbar { position: sticky; top: 0; z-index: 5; background: #f8f9fa;
+      border-bottom: 1px solid #dee2e6; padding: .6rem .8rem; border-radius: .5rem .5rem 0 0; }
+    .srv-body { max-height: 480px; overflow-y: auto; padding: .4rem .8rem .8rem; }
+    .srv-group { margin-top: .8rem; }
+    .srv-group-hd { display: flex; align-items: center; gap: .5rem;
+      font-weight: 600; padding: .35rem .25rem; border-bottom: 1px solid #eee;
+      position: sticky; top: 0; background: #fff; }
+    .srv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: .15rem .6rem; padding: .4rem .25rem; }
+    .srv-item { display: flex; align-items: center; gap: .4rem; padding: .2rem .3rem;
+      border-radius: .3rem; cursor: pointer; }
+    .srv-item:hover { background: #f1f3f5; }
+    .srv-item input { flex: none; }
+    .srv-item .sid { color: #6c757d; font-variant-numeric: tabular-nums; }
+    .srv-count-badge { font-size: .95rem; }
+
+    /* 分组折叠 */
+    .srv-group-hd { cursor: pointer; user-select: none; }
+    .srv-caret { font-size: .75rem; color: #adb5bd; transition: transform .15s; width: .8rem; }
+    .srv-group.collapsed .srv-caret { transform: rotate(-90deg); }
+    .srv-group.collapsed .srv-grid { display: none; }
+
+    /* 每个服一个单元:复选框 + 关联战斗服/副本服小字 */
+    .srv-cell { display: flex; flex-direction: column; }
+    .srv-sub { display: none; font-size: 12px; color: #868e96; line-height: 1.25;
+      padding: 0 0 3px 26px; }
+    /* 关联战斗/副本小字:仅当勾选"连带处理"(.show-assoc)且该服被选中时显示 */
+    .srv-body.show-assoc .srv-cell.on .srv-sub { display: block; }
+    .srv-tag { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 9px;
+      margin-right: 4px; white-space: nowrap; }
+    .srv-tag.b { color: #d9480f; background: #fff0e6; }
+    .srv-tag.c { color: #1971c2; background: #e7f1fd; }
+
+    /* 类型徽章:淡色底 + 同色字(soft),不和状态列一起太花 */
+    .badge.t-release,
+    .badge.t-hotupdate,
+    .badge.t-merge,
+    .badge.t-configpush,
+    .badge.t-mergepublish,
+    .badge.t-newserver,
+    .badge.t-deleteserver,
+    .badge.t-default {
+      background: #f2f4f7;
+      color: #344054;
+      border: 1px solid #dde3eb;
+      font-weight: 600;
+      font-size: .84rem;
+      line-height: 1.2;
+    }
+    .badge-ic { width: 13px; height: 13px; vertical-align: -2px; opacity: .9; }
+
+    .ol-table .badge { font-size: .84rem; line-height: 1.2; }
+    .ol-table .badge.text-bg-warning { background-color: #fff7e8 !important; color: #8a6500 !important; border: 1px solid #f2deac; }
+    .ol-table .badge.text-bg-danger  { background-color: #fef0f0 !important; color: #b42318 !important; border: 1px solid #f7c7c4; }
+    .ol-table .badge.text-bg-secondary { background-color: #f3f4f6 !important; color: #475467 !important; border: 1px solid #e4e7ec; }
+    .ol-table .badge.text-bg-primary { background-color: #edf4ff !important; color: #1849a9 !important; border: 1px solid #cfe0ff; }
+    .ol-table .badge.text-bg-info    { background-color: #ecfdf3 !important; color: #067647 !important; border: 1px solid #c9eed8; }
+    .ol-table .badge.text-bg-success { background-color: #ecfdf3 !important; color: #067647 !important; border: 1px solid #c9eed8; }
+
+    /* 通用卡片(列表/详情共用) */
+    .wo-card { border: 0; border-radius: .7rem; overflow: hidden;
+      box-shadow: 0 1px 3px rgba(16,24,40,.06), 0 1px 2px rgba(16,24,40,.04); }
+
+    /* ===== 侧边栏布局(亮色) ===== */
+    body { background: #f4f6f9; }
+    /* 应用外壳:整体撑满视口且不滚动,侧边栏/顶栏固定,只有正文区(.content)滚动 */
+    .app { display: flex; height: 100vh; overflow: hidden; }
+    .app-main { flex: 1; min-width: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    .sidebar { width: 232px; flex: none; background: #fff; border-right: 1px solid #e5e7eb;
+      display: flex; flex-direction: column; height: 100vh;
+      transition: width .15s ease; }
+    .sb-brand { display: flex; align-items: center; gap: .6rem; padding: 1rem .9rem;
+      font-weight: 700; font-size: 1.05rem; border-bottom: 1px solid #eef0f2; white-space: nowrap; }
+    .sb-brand .sb-logo { width: 30px; height: 30px; flex: none; border-radius: 8px;
+      background: linear-gradient(135deg,#0d6efd,#3b82f6); color: #fff; display: flex;
+      align-items: center; justify-content: center; font-size: 1rem; }
+    .sb-nav { flex: 1; overflow-y: auto; padding: .6rem .5rem; }
+    .sb-item { display: flex; align-items: center; gap: .7rem; padding: .55rem .65rem;
+      margin-bottom: 2px; border-radius: .5rem; color: #3f4754; text-decoration: none;
+      white-space: nowrap; font-size: .94rem; }
+    .sb-item:hover { background: #f1f3f5; color: #1f2937; }
+    .sb-item.active { background: #e7f1ff; color: #0d6efd; font-weight: 600; }
+    .sb-item.disabled { color: #b6bcc6; pointer-events: none; cursor: default; }
+    .sb-ic { width: 20px; flex: none; text-align: center; font-size: 1.05rem; }
+    .sb-ic .ic { width: 19px; height: 19px; display: block; margin: 0 auto; }
+    .sb-logo .ic { width: 19px; height: 19px; }
+    .tb-toggle .ic { width: 21px; height: 21px; display: block; }
+    .tb-user .ic { width: 18px; height: 18px; vertical-align: -3px; }
+    .sb-label { flex: 1; overflow: hidden; }
+    .sb-badge { background: #dc3545; color: #fff; border-radius: 10px; font-size: .7rem;
+      line-height: 1; padding: .2rem .4rem; }
+    .sb-divider { height: 1px; background: #eef0f2; margin: .55rem .5rem; }
+    .sb-foot { border-top: 1px solid #eef0f2; padding: .5rem; }
+    .sb-collapse { width: 100%; border: 0; background: transparent; color: #6b7280;
+      padding: .5rem; border-radius: .5rem; text-align: left; white-space: nowrap; cursor: pointer; }
+    .sb-collapse:hover { background: #f1f3f5; }
+
+    /* 收起态:只剩图标 */
+    .sidebar.collapsed { width: 64px; }
+    .sidebar.collapsed .sb-title,
+    .sidebar.collapsed .sb-label,
+    .sidebar.collapsed .sb-badge,
+    .sidebar.collapsed .sb-collapse .txt { display: none; }
+    .sidebar.collapsed .sb-item,
+    .sidebar.collapsed .sb-brand { justify-content: center; }
+    .sidebar.collapsed .sb-collapse { text-align: center; }
+
+    /* 顶栏 */
+    .topbar { height: 52px; flex: none; display: flex; align-items: center; gap: .6rem;
+      padding: 0 1rem; background: #fff; border-bottom: 1px solid #e5e7eb; z-index: 20; }
+    .topbar .tb-toggle { border: 0; background: transparent; font-size: 1.2rem; color: #6b7280;
+      cursor: pointer; padding: .2rem .4rem; border-radius: .4rem; }
+    .topbar .tb-toggle:hover { background: #f1f3f5; }
+    .topbar .tb-user { margin-left: auto; display: flex; align-items: center; gap: .6rem;
+      color: #3f4754; font-size: .92rem; }
+    .content { flex: 1; overflow-y: auto; padding: 1.4rem 1.6rem; }
+
+    @media (max-width: 768px) {
+      .sidebar { position: fixed; z-index: 30; left: 0; box-shadow: 2px 0 8px rgba(0,0,0,.08);
+        transform: translateX(0); }
+      .sidebar.collapsed { width: 64px; }
+    }
+  </style>
+</head>
+<body>
+<!-- 图标精灵:统一线性 SVG 图标(currentColor 描边,跟随选中态变色) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="ic-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="M7 9.8l3 2.2-3 2.2"/><line x1="12.5" y1="14.6" x2="16.5" y2="14.6"/></symbol>
+  <symbol id="ic-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l1.4 1.4L8 5"/><line x1="11" y1="6" x2="20" y2="6"/><path d="M4 12l1.4 1.4L8 11"/><line x1="11" y1="12" x2="20" y2="12"/><path d="M4 18l1.4 1.4L8 17"/><line x1="11" y1="18" x2="20" y2="18"/></symbol>
+  <symbol id="ic-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7a2 2 0 0 1 2-2h3.2l2 2H18a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/></symbol>
+  <symbol id="ic-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 1.8"/></symbol>
+  <symbol id="ic-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10.2 8.5L15.5 12l-5.3 3.5Z"/></symbol>
+  <symbol id="ic-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v4h4"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="16.5" x2="13.5" y2="16.5"/></symbol>
+  <symbol id="ic-server" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4.5" width="16" height="6.5" rx="1.6"/><rect x="4" y="13" width="16" height="6.5" rx="1.6"/><line x1="7.5" y1="7.75" x2="7.6" y2="7.75"/><line x1="7.5" y1="16.25" x2="7.6" y2="16.25"/></symbol>
+  <symbol id="ic-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 18.5a5.5 5.5 0 0 1 11 0"/><circle cx="16.6" cy="8.6" r="2.5"/><path d="M16 13.4a5 5 0 0 1 4.5 5.1"/></symbol>
+  <symbol id="ic-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M17.7 6.3l-1.4 1.4M7.7 16.3l-1.4 1.4"/></symbol>
+  <symbol id="ic-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></symbol>
+  <symbol id="ic-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 19a7 7 0 0 1 14 0"/></symbol>
+  <symbol id="ic-t-release" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V5"/><path d="M7.5 9.5 12 5l4.5 4.5"/><path d="M5 19h14"/></symbol>
+  <symbol id="ic-t-hot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 6 13h5l-1 9 7-12h-5z"/></symbol>
+  <symbol id="ic-t-merge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h7"/><path d="M7 9l3 3-3 3"/><path d="M21 12h-7"/><path d="M17 9l-3 3 3 3"/></symbol>
+  <symbol id="ic-t-config" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></symbol>
+</defs></svg>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-brand">
+      <span class="sb-logo"><svg class="ic"><use href="#ic-brand"/></svg></span>
+      <span class="sb-title">运维工单系统</span>
+    </div>
+    <nav class="sb-nav">
+      <a class="sb-item" data-path="/orders" href="/orders"><span class="sb-ic"><svg class="ic"><use href="#ic-list"/></svg></span><span class="sb-label">工单列表</span></a>
+      <a class="sb-item" data-path="/orders/mine" href="/orders/mine"><span class="sb-ic"><svg class="ic"><use href="#ic-folder"/></svg></span><span class="sb-label">我的工单</span></a>
+      <a class="sb-item" data-path="/orders/pending" href="/orders/pending"><span class="sb-ic"><svg class="ic"><use href="#ic-clock"/></svg></span><span class="sb-label">待审批</span>{{ if .PendingCount }}<span class="sb-badge">{{ .PendingCount }}</span>{{ end }}</a>
+      <a class="sb-item" data-path="/orders/executions" href="/orders/executions"><span class="sb-ic"><svg class="ic"><use href="#ic-play"/></svg></span><span class="sb-label">执行记录</span></a>
+      <a class="sb-item" data-path="/orders/auditlog" href="/orders/auditlog"><span class="sb-ic"><svg class="ic"><use href="#ic-doc"/></svg></span><span class="sb-label">操作日志</span></a>
+      {{ if .CanMergePreview }}<a class="sb-item" data-path="/mergepreview" href="/mergepreview"><span class="sb-ic"><svg class="ic"><use href="#ic-doc"/></svg></span><span class="sb-label">合服预告</span></a>{{ end }}
+      <div class="sb-divider"></div>
+      {{ if .CanServers }}<a class="sb-item" data-path="/servers" href="/servers"><span class="sb-ic"><svg class="ic"><use href="#ic-server"/></svg></span><span class="sb-label">服务器管理</span></a>{{ end }}
+      {{ if .IsAdmin }}<a class="sb-item" data-path="/members" href="/members"><span class="sb-ic"><svg class="ic"><use href="#ic-users"/></svg></span><span class="sb-label">用户管理</span></a>{{ end }}
+      {{ if .CanGSConfig }}<a class="sb-item" data-path="/gsconfig" href="/gsconfig"><span class="sb-ic"><svg class="ic"><use href="#ic-server"/></svg></span><span class="sb-label">游戏服配置</span></a>{{ end }}
+      {{ if .IsAdmin }}<a class="sb-item" data-path="/settings" href="/settings"><span class="sb-ic"><svg class="ic"><use href="#ic-settings"/></svg></span><span class="sb-label">系统设置</span></a>{{ end }}
+    </nav>
+    <div class="sb-foot">
+      <button class="sb-collapse" id="sbCollapse"><span class="sb-ic">«</span><span class="txt">收起菜单</span></button>
+    </div>
+  </aside>
+  <div class="app-main">
+    <header class="topbar">
+      <button class="tb-toggle" id="tbToggle" title="折叠/展开侧边栏"><svg class="ic"><use href="#ic-menu"/></svg></button>
+      <span class="tb-user"><svg class="ic"><use href="#ic-user"/></svg> {{ if .User }}{{ .User }}{{ else }}admin{{ end }} <a href="/logout" class="btn btn-sm btn-outline-secondary">退出</a></span>
+    </header>
+    <main class="content">
+{{ end }}
+
+{{ define "foot" }}
+    </main>
+  </div>
+</div>
+<script>
+(function(){
+  var sb = document.getElementById('sidebar');
+  // 还原上次的收起状态
+  if (localStorage.getItem('sb-collapsed') === '1') sb.classList.add('collapsed');
+  function toggle(){
+    sb.classList.toggle('collapsed');
+    localStorage.setItem('sb-collapsed', sb.classList.contains('collapsed') ? '1' : '0');
+  }
+  var c = document.getElementById('sbCollapse'); if (c) c.addEventListener('click', toggle);
+  var t = document.getElementById('tbToggle'); if (t) t.addEventListener('click', toggle);
+  // 按当前路径高亮导航项:取「匹配且最长」的 data-path,
+  // 避免 /orders/mine 既命中 /orders 又命中 /orders/mine 时两个都高亮。
+  var path = window.location.pathname;
+  var best = null, bestLen = -1;
+  document.querySelectorAll('.sb-item[data-path]').forEach(function(a){
+    var p = a.getAttribute('data-path');
+    if (path === p || (p !== '/' && path.indexOf(p) === 0)) {
+      if (p.length > bestLen) { best = a; bestLen = p.length; }
+    }
+  });
+  if (best) best.classList.add('active');
+})();
+</script>
+
+<!-- 全局确认弹窗(替代原生 confirm) -->
+<style>
+  .uc-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 1080;
+    display: none; align-items: center; justify-content: center; opacity: 0; transition: opacity .15s; }
+  .uc-overlay.show { display: flex; opacity: 1; }
+  .uc-dialog { position: relative; width: 420px; max-width: calc(100vw - 32px); background: #fff; border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(16,24,40,.28); padding: 1.35rem 1.4rem 1rem;
+    transform: translateY(10px) scale(.98); transition: transform .15s ease; }
+  .uc-overlay.show .uc-dialog { transform: none; }
+  .uc-close { position: absolute; top: .65rem; right: .75rem; width: 28px; height: 28px; border: 0;
+    background: transparent; color: #98a2b3; font-size: 1.4rem; line-height: 1; cursor: pointer;
+    border-radius: 7px; display: flex; align-items: center; justify-content: center; }
+  .uc-close:hover { background: #f1f3f5; color: #475467; }
+  .uc-body { display: flex; gap: .9rem; align-items: flex-start; }
+  .uc-icon { width: 40px; height: 40px; flex: none; border-radius: 50%; background: #e7f1ff; color: #2563eb;
+    display: flex; align-items: center; justify-content: center; }
+  .uc-icon.danger { background: #fdecee; color: #d92d20; }
+  .uc-icon svg { width: 22px; height: 22px; }
+  .uc-title { font-weight: 600; font-size: 1.02rem; color: #1f2937; margin-bottom: .3rem; padding-right: 1.6rem; }
+  .uc-msg { color: #5b6573; font-size: .9rem; line-height: 1.55; white-space: pre-line; word-break: break-word; }
+  .uc-foot { display: flex; justify-content: center; margin-top: 1.25rem; }
+  .uc-btn { width: 96px; height: 36px; border-radius: 8px; font-size: .88rem; font-weight: 600; cursor: pointer;
+    border: 1px solid transparent; padding: 0 1rem; line-height: 1; white-space: nowrap;
+    display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;
+    transition: background .12s, border-color .12s; }
+  .uc-cancel { background: #fff; border-color: #d7dce3; color: #475467; }
+  .uc-cancel:hover { background: #f5f7fa; }
+  .uc-ok { background: #2563eb; color: #fff; }
+  .uc-ok:hover { background: #1d4ed8; }
+  .uc-ok.danger { background: #e5484d; }
+  .uc-ok.danger:hover { background: #d92d20; }
+  #uc-actions { display: flex; align-items: center; justify-content: center; gap: .6rem; width: 100%; }
+  .uc-dialog.wide { width: 640px; }
+  /* 工单关键信息摘要(uiConfirm 的 html 内容) */
+  .oc-sum { white-space: normal; text-align: left; }
+  .oc-hd { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; padding-bottom: .6rem;
+    margin-bottom: .6rem; border-bottom: 1px solid #eef0f2; }
+  .oc-badge { font-size: .78rem; font-weight: 700; padding: .12rem .5rem; border-radius: 6px;
+    background: #e7f1ff; color: #1849a9; }
+  .oc-title { font-weight: 600; color: #101828; }
+  .oc-when { margin-left: auto; font-size: .82rem; color: #475467; }
+  .oc-when.at { color: #b54708; font-weight: 600; }
+  .oc-grp { margin-top: .5rem; }
+  .oc-grp-t { font-size: .76rem; font-weight: 600; color: #98a2b3; margin-bottom: .25rem; }
+  .oc-row { display: flex; gap: .5rem; font-size: .85rem; padding: .12rem 0; }
+  .oc-row .k { color: #98a2b3; flex: none; min-width: 96px; }
+  .oc-row .v { color: #101828; word-break: break-all; }
+  .oc-warn { color: #d92d20; font-weight: 600; }
+  .oc-hint { color: #98a2b3; font-weight: 400; font-size: .78rem; }
+  .uc-log { margin: .6rem 0 0; padding: .6rem .7rem; background: #0f172a; color: #e2e8f0;
+    border-radius: 8px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .78rem;
+    line-height: 1.5; white-space: pre-wrap; word-break: break-all; max-height: 44vh; overflow: auto; text-align: left; }
+  .oc-srv > summary { cursor: pointer; color: #2563eb; font-size: .82rem; }
+  .oc-sum .ids { font-size: .8rem; color: #475467; margin-top: .3rem; word-break: break-all;
+    max-height: 30vh; overflow: auto; }
+</style>
+<div class="uc-overlay" id="ui-confirm">
+  <div class="uc-dialog" role="dialog" aria-modal="true">
+    <button class="uc-close" id="uc-close" aria-label="取消" title="取消">&times;</button>
+    <div class="uc-body">
+      <span class="uc-icon" id="uc-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="7.5" x2="12" y2="13"/><line x1="12" y1="16.3" x2="12" y2="16.4"/></svg>
+      </span>
+      <div class="uc-text">
+        <div class="uc-title" id="uc-title">确认操作</div>
+        <div class="uc-msg" id="uc-msg"></div>
+      </div>
+    </div>
+    <div class="uc-foot">
+      <span id="uc-actions"></span>
+    </div>
+  </div>
+</div>
+<script>
+// uiConfirm(opts) -> Promise<bool>。opts: {title, message, okText, cancelText, danger}
+// uiConfirm(opts) -> Promise。opts: {title, message, html, okText, cancelText, danger,
+//   buttons:[{label,value,danger}]}。不传 buttons 时为单「确定」按钮(resolve true/false);
+//   传 buttons 时点哪个 resolve 对应 value,取消 resolve false。
+//   html(可选):结构化内容,走 innerHTML(调用方须自行转义动态值);否则用 message 纯文本。
+window.uiConfirm = function(opts){
+  opts = opts || {};
+  return new Promise(function(resolve){
+    var ov = document.getElementById('ui-confirm');
+    var dlg = ov.querySelector('.uc-dialog');
+    dlg.classList.toggle('wide', !!opts.wide); // 宽弹窗(结构化摘要用)
+    document.getElementById('uc-title').textContent = opts.title || '确认操作';
+    var msgEl = document.getElementById('uc-msg');
+    // opts.html:结构化内容(innerHTML);否则走纯文本(textContent,安全)。
+    if (opts.html != null) { msgEl.innerHTML = opts.html; }
+    else { msgEl.textContent = opts.message || '确定执行此操作吗?'; }
+    var closeBtn = document.getElementById('uc-close');
+    var actions = document.getElementById('uc-actions');
+    var btns = opts.buttons || [{ label: opts.okText || '确定', value: true, danger: !!opts.danger }];
+    var anyDanger = !!opts.danger;
+    actions.innerHTML = '';
+    btns.forEach(function(b){
+      if (b.danger) anyDanger = true;
+      var el = document.createElement('button');
+      el.className = 'uc-btn uc-ok' + (b.danger ? ' danger' : '');
+      el.textContent = b.label;
+      el.onclick = function(){ done(b.value); };
+      actions.appendChild(el);
+    });
+    document.getElementById('uc-icon').className = 'uc-icon' + (anyDanger ? ' danger' : '');
+    var single = btns.length === 1;
+    function done(val){
+      ov.classList.remove('show');
+      document.removeEventListener('keydown', onKey);
+      closeBtn.onclick = ov.onclick = null;
+      resolve(val);
+    }
+    // 多按钮时回车不默认触发,避免误触危险操作;Esc / 右上角 X / 点遮罩 均为取消
+    function onKey(e){ if (e.key === 'Escape') done(false); else if (e.key === 'Enter' && single) done(btns[0].value); }
+    closeBtn.onclick = function(){ done(false); };
+    ov.onclick = function(e){ if (e.target === ov) done(false); };
+    document.addEventListener('keydown', onKey);
+    ov.classList.add('show');
+    setTimeout(function(){ var f = actions.querySelector('button'); if (f) f.focus(); }, 30);
+  });
+};
+
+// uiAlert(opts) -> Promise:单「确定」按钮的站内提示框,替代原生 alert。
+// opts: {title, message, log(等宽可滚动日志区), danger, wide}
+window.uiAlert = function(opts){
+  opts = opts || {};
+  var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
+    return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' })[c]; }); };
+  var html = '';
+  if (opts.message) html += '<div style="text-align:left">' + esc(opts.message) + '</div>';
+  if (opts.log && String(opts.log).trim()) html += '<pre class="uc-log">' + esc(opts.log) + '</pre>';
+  return window.uiConfirm({ title: opts.title || '提示', html: html, okText: opts.okText || '确定',
+    danger: opts.danger, wide: opts.wide });
+};
+
+// 全局拦截:带 data-confirm 属性的表单提交,统一用自定义弹窗确认
+document.addEventListener('submit', function(e){
+  var f = e.target;
+  if (!f || !f.getAttribute || f.getAttribute('data-confirm') === null) return;
+  e.preventDefault();
+  window.uiConfirm({ message: f.getAttribute('data-confirm'), danger: f.getAttribute('data-danger') === '1' })
+    .then(function(ok){ if (ok) f.submit(); });
+}, true);
+</script>
+</body>
+</html>
+{{ end }}

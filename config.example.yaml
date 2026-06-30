@@ -1,0 +1,82 @@
+# 配置示例 —— 复制为 config.yaml 后按实际环境填写。
+# 注意：config.yaml 含密钥，已在 .gitignore 中忽略，切勿提交。
+# 本示例中的密码 / 密钥均为占位值（test / 占位串），不是真实凭据。
+
+server:
+  port: 8080 # API 服务监听端口
+
+database:
+  driver: sqlite # 本地工单库类型
+  dsn: gongdan.db # 本地工单库文件
+
+executor:
+  mode: mock # real=执行真实命令；mock=仅模拟（建议本地用 mock）
+  ssh_key: ~/.ssh/id_rsa # SSH 私钥路径
+  ssh_port: 22 # 远端 SSH 端口
+  ssh_user: root # 远端 SSH 用户
+  packages_dir: /export/packages # 远端资源根目录
+  remote_scripts_dir: /export/packages/scripts # 远端脚本目录
+  merge_script: /opt/deploy/scripts/merge.sh # 合服脚本路径
+  server_config_file: ServerConfigList.txt # 服配置文件名
+  show_all_servers: true # 是否展示全部服务器
+  concurrency: 50 # 全局并发上限
+  swap_concurrency: 8 # 换包并发上限
+  batch_size: 50 # 分批执行每批数量
+  launch_delay_ms: 150 # 启动 SSH 前延迟(ms)
+  per_host_concurrency: 2 # 单机并发上限
+  ssh_retries: 3 # SSH 重试次数
+  ssh_retry_backoff_ms: 500 # SSH 重试回退(ms)
+  ssh_multiplex: true # 启用 SSH 连接复用
+  status_poll_s: 3 # 状态轮询间隔(s)
+  status_timeout_s: 60 # 状态等待超时(s)
+  hefu_dir: /export/tmp/ # 合服临时目录
+  stop_retries: 2 # 停服失败重试次数
+  hot_retry_backoffs_s: [2, 3, 5] # 热更失败重试间隔(s)
+  gm_hot_update_script: /export/packages/scripts/gd_gmhot.sh # GM 热更脚本
+
+# ALB 自动化配置（新建/删除游戏服时生效）
+alb:
+  enabled: false # 总开关：true 才会执行 ALB 创建/删除
+  region: cn-hangzhou # SDK 调用地域
+  # resource_group_id: rg-xxxxxxxxxxxx
+  # vpc_id: vpc-xxxxxxxxxxxx
+  # health_check_template_id: hct-xxxxxxxxxxxx
+  # login_load_balancer_id: alb-xxxxxxxxxxxx
+  # login_listener_id: lsn-xxxxxxxxxxxx
+  # pay_load_balancer_id: alb-xxxxxxxxxxxx
+  # pay_listener_id: lsn-xxxxxxxxxxxx
+  # ws_load_balancer_id: alb-xxxxxxxxxxxx
+  # ws_listener_id: lsn-xxxxxxxxxxxx
+
+auth:
+  password_enabled: true # 启用账号密码登录
+  wework_enabled: false # 启用企业微信登录
+
+notify:
+  wework:
+    enabled: false # 群机器人通知总开关
+    webhook: "" # 群机器人 webhook URL
+    base_url: "" # 运维访问 gongdan 的基础地址,如 http://1.2.3.4:8080;空=消息不带详情链接
+
+workflow:
+  auto_execute_after_approve: false # 审批通过后自动执行
+  auto_open_after_test: false # 测试通过后自动开服
+  scheduler_tick_s: 30 # 调度轮询间隔(s)
+
+gsconfig:
+  db_dsn: "test:test@tcp(127.0.0.1:3306)/gameconfig?charset=utf8mb4&parseTime=true" # 游戏服配置库 DSN（占位）
+  server_debug_path: "" # 本地调试：服务端配置文件路径（空=关闭）
+  client_debug_path: "" # 本地调试：客户端配置文件路径（空=关闭）
+  cos:
+    region: ap-guangzhou # COS 桶所在地域(腾讯云,形如 ap-guangzhou/ap-shanghai)
+    bucket: "your-bucket-1250000000" # COS 桶名（占位）
+    secret_id: "test" # COS 密钥 ID（占位，勿填真实值）
+    secret_key: "test" # COS 密钥 Key（占位，勿填真实值）
+    server_object_key: server/ServerConfigList.txt # 服务端配置对象路径
+    client_object_key: client/ServerConfigList.txt # 客户端配置对象路径
+    merge_preview_object_key: server/MergeServerFunction.txt # 合服预告对象路径
+
+# 可选：合服预告使用独立库（不配则默认复用 gsconfig.db_dsn）
+# mergepreview:
+#   database: mergepreview
+#   db_dsn: "user:pass@tcp(other-host:3306)/mergepreview?charset=utf8mb4&parseTime=true"

@@ -1,0 +1,89 @@
+{{ define "server_terminal.html" }}<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ .Title }}</title>
+  <link href="/static/xterm.css" rel="stylesheet">
+  <style>
+    html, body { height: 100%; margin: 0; background: #0b1020; }
+    .tm-bar { height: 40px; display: flex; align-items: center; gap: .7rem; padding: 0 .9rem;
+      background: #11182b; color: #cdd6e6; font: 13px/1.4 -apple-system,Segoe UI,Microsoft YaHei,sans-serif;
+      border-bottom: 1px solid #1f2a44; }
+    .tm-bar .name { font-weight: 600; color: #e6edfb; }
+    .tm-bar .sub { color: #7c89a6; font-variant-numeric: tabular-nums; }
+    .tm-bar .spacer { flex: 1; }
+    .tm-state { display: inline-flex; align-items: center; gap: .35rem; font-size: 12px; }
+    .tm-state::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #f0b429; }
+    .tm-state.ok::before { background: #2bd576; }
+    .tm-state.off::before { background: #f0506e; }
+    .tm-bar a { color: #6ea8fe; text-decoration: none; }
+    .tm-bar a:hover { text-decoration: underline; }
+    #term { position: absolute; top: 40px; left: 0; right: 0; bottom: 0; padding: 6px 8px; }
+    .xterm-viewport::-webkit-scrollbar { width: 10px; }
+    .xterm-viewport::-webkit-scrollbar-thumb { background: #2a3a5e; border-radius: 5px; }
+    .xterm-viewport::-webkit-scrollbar-track { background: transparent; }
+  </style>
+</head>
+<body>
+  <div class="tm-bar">
+    <span class="name">{{ .S.Desc }}</span>
+    <span class="sub">ID: {{ .S.ID }} · {{ if .S.IP }}{{ .S.IP }}{{ else }}—{{ end }}</span>
+    <span class="tm-state" id="tm-state">连接中…</span>
+    <span class="spacer"></span>
+    <a href="/servers/{{ .S.ID }}" target="_blank">详情</a>
+    <a href="#" id="tm-reconnect">重连</a>
+  </div>
+  <div id="term"></div>
+
+  <script src="/static/xterm.js"></script>
+  <script src="/static/xterm-addon-fit.js"></script>
+  <script>
+  (function(){
+    var id = {{ .S.ID }};
+    var stateEl = document.getElementById('tm-state');
+    function state(text, cls){ stateEl.textContent = text; stateEl.className = 'tm-state' + (cls ? ' ' + cls : ''); }
+
+    var term = new Terminal({
+      cursorBlink: true, fontSize: 14, scrollback: 5000,
+      fontFamily: 'Menlo,Consolas,"Microsoft YaHei",monospace',
+      theme: { background: '#0b1020', foreground: '#d6e2ff' }
+    });
+    var fit = new FitAddon.FitAddon();
+    term.loadAddon(fit);
+    term.open(document.getElementById('term'));
+    function doFit(){ try { fit.fit(); } catch (e) {} }
+
+    var ws;
+    function sendResize(){ if (ws && ws.readyState === 1) ws.send(JSON.stringify({ t: 'r', cols: term.cols, rows: term.rows })); }
+
+    function connect(){
+      var proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      ws = new WebSocket(proto + '://' + location.host + '/servers/' + id + '/terminal/ws');
+      ws.binaryType = 'arraybuffer';
+      ws.onopen = function(){ state('已连接', 'ok'); sendResize(); term.focus(); };
+      ws.onmessage = function(e){
+        if (typeof e.data === 'string') term.write(e.data);
+        else term.write(new Uint8Array(e.data));
+      };
+      ws.onclose = function(){ state('已断开', 'off'); term.write('\r\n\x1b[33m[连接已关闭]\x1b[0m\r\n'); };
+      ws.onerror = function(){ state('连接错误', 'off'); };
+    }
+
+    term.onData(function(d){ if (ws && ws.readyState === 1) ws.send(JSON.stringify({ t: 'i', d: d })); });
+    window.addEventListener('resize', function(){ doFit(); sendResize(); });
+    document.getElementById('tm-reconnect').addEventListener('click', function(ev){
+      ev.preventDefault();
+      try { if (ws) ws.close(); } catch (e) {}
+      term.clear(); state('连接中…'); connect();
+    });
+
+    // 等布局/字体就绪后再 fit,避免初始按 0 尺寸算出过窄的终端
+    requestAnimationFrame(function(){ doFit(); connect(); });
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(function(){ doFit(); sendResize(); });
+    }
+  })();
+  </script>
+</body>
+</html>{{ end }}

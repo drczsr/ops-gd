@@ -1,0 +1,144 @@
+{{ template "head" . }}
+<style>
+  .mb-list thead th { color: #6b7280; font-weight: 600; font-size: .82rem;
+    background: #f8f9fb; border-top: 0; white-space: nowrap; }
+  .mb-list td, .mb-list th { padding: .6rem .9rem; vertical-align: middle; }
+  .mb-list tbody td { border-top: 1px solid #f1f2f4; }
+  .mb-list tbody tr:hover { background: #f8faff; }
+  /* 权限/可登录 soft 徽章 */
+  .perm-on  { background: #e7f1ff; color: #0d6efd; }
+  .perm-off { color: #cbd2dc; }
+  .perm-admin { background: #fdf0e6; color: #b54708; border: 1px solid #f5d3b3; }
+  .acc-ok   { background: #f6fef9; color: #067647; border: 1px solid #abefc6; }
+  .acc-no   { background: #fde7e9; color: #b42318; }
+  /* 新增/更新表单卡片 */
+  .mb-form .form-label { font-size: .85rem; color: #344054; }
+  .mb-form .desc { color: #98a2b3; font-size: .8rem; }
+  .mb-form .perm-checks { display: flex; gap: 1.2rem; flex-wrap: wrap; align-items: center; }
+</style>
+
+<h4 class="mb-3">成员角色管理</h4>
+
+<div class="card wo-card mb-4">
+  <div class="table-responsive">
+    <table class="table mb-list align-middle mb-0">
+      <thead><tr><th>账号</th><th>显示名</th><th>可登录</th><th>提交</th><th>审批</th><th>执行</th><th>测试</th><th>管理员</th><th>菜单访问</th><th>操作</th></tr></thead>
+      <tbody>
+      {{ range .Members }}
+        <tr>
+          <td class="fw-medium">{{ .UserID }}</td>
+          <td>{{ .DisplayName }}</td>
+          <td>{{ if index $.HasAccount .UserID }}<span class="badge acc-ok">可登录</span>{{ else }}<span class="badge acc-no">无密码</span>{{ end }}</td>
+          <td>{{ if .CanSubmit }}<span class="badge perm-on">提交</span>{{ else }}<span class="perm-off">—</span>{{ end }}</td>
+          <td>{{ if .CanApprove }}<span class="badge perm-on">审批</span>{{ else }}<span class="perm-off">—</span>{{ end }}</td>
+          <td>{{ if .CanExecute }}<span class="badge perm-on">执行</span>{{ else }}<span class="perm-off">—</span>{{ end }}</td>
+          <td>{{ if .CanTest }}<span class="badge perm-on">测试</span>{{ else }}<span class="perm-off">—</span>{{ end }}</td>
+          <td>{{ if .CanAdmin }}<span class="badge perm-admin">管理员</span>{{ else }}<span class="perm-off">—</span>{{ end }}</td>
+          <td>
+            {{ if .CanAdmin }}<span class="badge perm-admin">全部</span>
+            {{ else }}{{ if .CanServers }}<span class="badge perm-on">服务器</span> {{ end }}{{ if .CanGSConfig }}<span class="badge perm-on">游戏服配置</span> {{ end }}{{ if .CanMergePreview }}<span class="badge perm-on">合服预告</span>{{ end }}{{ if not (or .CanServers .CanGSConfig .CanMergePreview) }}<span class="perm-off">—</span>{{ end }}{{ end }}
+          </td>
+          <td>
+            <button type="button" class="btn btn-sm btn-link p-0 mb-edit"
+              data-uid="{{ .UserID }}" data-name="{{ .DisplayName }}"
+              data-submit="{{ if .CanSubmit }}1{{ end }}" data-approve="{{ if .CanApprove }}1{{ end }}"
+              data-execute="{{ if .CanExecute }}1{{ end }}" data-test="{{ if .CanTest }}1{{ end }}"
+              data-admin="{{ if .CanAdmin }}1{{ end }}"
+              data-servers="{{ if .CanServers }}1{{ end }}" data-gsconfig="{{ if .CanGSConfig }}1{{ end }}"
+              data-mergepreview="{{ if .CanMergePreview }}1{{ end }}"
+              data-wework="{{ index $.WeworkOf .UserID }}">修改</button>
+          </td>
+        </tr>
+      {{ else }}
+        <tr><td colspan="10" class="text-center text-muted py-4">暂无成员</td></tr>
+      {{ end }}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card wo-card mb-form" style="max-width: 860px;">
+  <div class="card-body">
+    <h6 class="fw-semibold mb-3" id="mb-form-title">新增 / 更新成员</h6>
+    <form method="post" action="/members" class="row g-3" id="member-form">
+      <div class="col-md-4">
+        <label class="form-label">账号(user_id)</label>
+        <input class="form-control" name="user_id" id="mb-uid" placeholder="登录用户名" required>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">显示名</label>
+        <input class="form-control" name="display_name" id="mb-name" placeholder="如:张三">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">密码</label>
+        <input class="form-control" type="password" name="password" placeholder="新增必填,修改留空不变">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">企业微信 userid</label>
+        <input class="form-control" name="wework_userid" id="mb-wework" placeholder="群机器人 @ 用,留空不 @">
+      </div>
+      <div class="col-12">
+        <label class="form-label d-block">角色权限</label>
+        <div class="perm-checks">
+          <span class="form-check"><input class="form-check-input" type="checkbox" name="can_submit" id="cs"><label class="form-check-label" for="cs">提交</label></span>
+          <span class="form-check"><input class="form-check-input" type="checkbox" name="can_approve" id="ca"><label class="form-check-label" for="ca">审批</label></span>
+          <span class="form-check"><input class="form-check-input" type="checkbox" name="can_execute" id="ce"><label class="form-check-label" for="ce">执行</label></span>
+          <span class="form-check"><input class="form-check-input" type="checkbox" name="can_test" id="ct"><label class="form-check-label" for="ct">测试</label></span>
+          <span class="form-check"><input class="form-check-input" type="checkbox" name="can_admin" id="cad"><label class="form-check-label" for="cad">管理员</label></span>
+        </div>
+        <label class="form-label d-block mt-3">菜单访问</label>
+        <div class="perm-checks">
+          <span class="form-check"><input class="form-check-input" type="checkbox" name="can_servers" id="csv"><label class="form-check-label" for="csv">服务器管理</label></span>
+          <span class="form-check"><input class="form-check-input" type="checkbox" name="can_gsconfig" id="cgs"><label class="form-check-label" for="cgs">游戏服配置</label></span>
+          <span class="form-check"><input class="form-check-input" type="checkbox" name="can_mergepreview" id="cmp"><label class="form-check-label" for="cmp">合服预告</label></span>
+        </div>
+        <div class="desc mt-1">管理员可进入系统设置、用户管理、Web 终端,并 <b>override</b> 全部菜单(无需再勾「菜单访问」);并可审批自己提交的工单。「菜单访问」给非管理员单独开放对应页面(如给策划只勾「合服预告」)。</div>
+      </div>
+      <div class="col-12">
+        <button class="btn btn-primary">保存</button>
+        <button type="button" class="btn btn-light ms-2" id="mb-cancel" style="display:none">取消修改</button>
+        <div class="desc mt-2">账号即登录用户名。新增成员必须设置密码才能登录;修改时密码留空表示保持原密码不变。</div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function(){
+  var form = document.getElementById('member-form');
+  var title = document.getElementById('mb-form-title');
+  var uid = document.getElementById('mb-uid');
+  var name = document.getElementById('mb-name');
+  var wework = document.getElementById('mb-wework');
+  var cancel = document.getElementById('mb-cancel');
+  if (!form) return;
+  var checks = { submit:'cs', approve:'ca', execute:'ce', test:'ct', admin:'cad',
+                 servers:'csv', gsconfig:'cgs', mergepreview:'cmp' };
+
+  function resetForm() {
+    form.reset();
+    uid.readOnly = false;
+    title.textContent = '新增 / 更新成员';
+    cancel.style.display = 'none';
+  }
+  cancel.addEventListener('click', resetForm);
+
+  document.querySelectorAll('.mb-edit').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var d = btn.dataset;
+      uid.value = d.uid;
+      uid.readOnly = true;            // 修改时账号不可改(改了会变成新增另一个成员)
+      name.value = d.name || '';
+      wework.value = d.wework || '';
+      Object.keys(checks).forEach(function(k){
+        document.getElementById(checks[k]).checked = (d[k] === '1');
+      });
+      title.textContent = '修改成员:' + d.uid;
+      cancel.style.display = '';
+      form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      name.focus();
+    });
+  });
+})();
+</script>
+{{ template "foot" . }}

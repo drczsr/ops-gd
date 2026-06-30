@@ -1,0 +1,316 @@
+{{ template "head" . }}
+<style>
+  /* 工单列表 —— 与「实例」页统一的云控制台风格 */
+  .ol-page { height: 100%; display: flex; flex-direction: column; }
+  .ol-head { display: flex; align-items: baseline; gap: .5rem; margin-bottom: .85rem; flex: none; }
+  .ol-head h4 { margin: 0; font-weight: 600; font-size: 1.18rem; }
+  .ol-head .spacer { flex: 1; }
+  .ol-head .hint { color: #9aa3af; font-size: .82rem; }
+  .ol-head .hint b { color: #495565; font-weight: 600; }
+
+  .ol-card { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+    background: #fff; border: 1px solid #e8ebf1; border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.05); }
+  .ol-bar { flex: none; display: flex; align-items: center; gap: .6rem;
+    padding: .7rem .85rem; border-bottom: 1px solid #eef1f5; }
+  .ol-search { flex: 1; max-width: 420px; position: relative; }
+  .ol-search input { width: 100%; height: 32px; border: 1px solid #dfe3e8; border-radius: 6px;
+    padding: 0 .7rem 0 2rem; font-size: .86rem; }
+  .ol-search input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.12); }
+  .ol-search .si { position: absolute; left: .55rem; top: 50%; transform: translateY(-50%);
+    width: 15px; height: 15px; color: #aeb6c2; }
+  .ol-bar .spacer { flex: 1; }
+  .ol-bar select { height: 32px; border: 1px solid #dfe3e8; border-radius: 6px; font-size: .85rem;
+    color: #5b6573; padding: 0 .5rem; cursor: pointer; }
+
+  .ol-scroll { flex: 1; min-height: 0; overflow: auto; }
+  .ol-table { width: 100%; min-width: 1040px; margin: 0; border-collapse: separate; border-spacing: 0;
+    font-size: .87rem; }
+  .ol-table thead th { position: sticky; top: 0; z-index: 2; background: #fafbfc;
+    color: #6b7682; font-weight: 600; font-size: .8rem; white-space: nowrap;
+    border-bottom: 1px solid #e9edf2; padding: .62rem .9rem; vertical-align: middle; text-align: left; }
+  .ol-table td { padding: .55rem .9rem; vertical-align: middle; white-space: nowrap;
+    border-bottom: 1px solid #f0f2f6; }
+  .ol-table tbody tr:hover { background: #f7faff; }
+  .ol-table tbody tr:last-child td { border-bottom: 0; }
+  .ol-table td.wo-title { white-space: normal; min-width: 150px; }
+  .ol-table td.wo-target { white-space: normal; }
+  .ol-no { color: #2563eb; text-decoration: none; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .ol-no:hover { text-decoration: underline; }
+
+  /* 状态徽章:胶囊感(沿用 statusClass 的 text-bg-* 配色) */
+  .ol-table .badge { border-radius: 11px; padding: .25em .6em; font-weight: 500; }
+
+  .wo-target .full { max-width: 360px; overflow-wrap: anywhere; }
+  .wo-target summary { cursor: pointer; color: var(--bs-primary); list-style: none; font-size: .8rem; }
+  .wo-target summary::-webkit-details-marker { display: none; }
+  .wo-target summary::before { content: "更多"; }
+  .wo-target details[open] summary::before { content: "收起"; }
+  .wo-ops { display: flex; gap: .35rem; flex-wrap: wrap; align-items: center; }
+  .wo-ops .btn { --bs-btn-padding-y: .15rem; --bs-btn-padding-x: .55rem; --bs-btn-font-size: .8rem; }
+  .wo-ops form { display: inline; margin: 0; }
+  .wo-ops .view { color: #2563eb; text-decoration: none; font-size: .84rem; }
+  .wo-ops .view:hover { text-decoration: underline; }
+
+  /* 底栏:分页 */
+  .ol-footer { flex: none; display: flex; align-items: center; gap: .8rem;
+    padding: .6rem .85rem; border-top: 1px solid #eef1f5; background: #fcfcfd; }
+  .ol-footer .spacer { flex: 1; }
+  .ol-pager { display: flex; align-items: center; gap: .35rem; color: #5b6573; font-size: .84rem; }
+  .ol-pager .total { margin-right: .5rem; color: #8a93a0; }
+  .ol-pager #ol-pglist { display: inline-flex; gap: .25rem; }
+  .ol-pager button { min-width: 28px; height: 28px; border: 1px solid #e3e8ee; background: #fff;
+    border-radius: 6px; color: #5b6573; cursor: pointer; padding: 0 .45rem; }
+  .ol-pager button:hover:not(:disabled) { border-color: #93b4f5; color: #2563eb; }
+  .ol-pager button.cur { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .ol-pager button:disabled { color: #c4ccd6; cursor: default; }
+  .ol-pager select { height: 28px; border: 1px solid #e3e8ee; border-radius: 6px; font-size: .82rem;
+    color: #5b6573; padding: 0 .3rem; cursor: pointer; }
+</style>
+
+<div class="ol-page">
+  <div class="ol-head">
+    <h4>{{ if .Heading }}{{ .Heading }}{{ else }}工单列表{{ end }}</h4>
+    <span class="spacer"></span>
+    <span class="hint">共 <b>{{ len .Orders }}</b> 单</span>
+  </div>
+
+  <div class="ol-card">
+    <div class="ol-bar">
+      {{ if .ShowNew }}<a class="btn btn-primary btn-sm" href="/orders/new">+ 新建工单</a>{{ end }}
+      <div class="ol-search">
+        <svg class="si" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+        <input id="ol-q" placeholder="搜索 工单号 / 标题 / 提交人 / 目标 ...">
+      </div>
+      <span class="spacer"></span>
+      <form method="get" style="margin:0">
+        <select name="type" onchange="this.form.submit()">
+          <option value="">全部类型</option>
+          <option value="merge" {{ if eq .FilterType "merge" }}selected{{ end }}>合服</option>
+          <option value="release" {{ if eq .FilterType "release" }}selected{{ end }}>发版</option>
+          <option value="hotupdate" {{ if eq .FilterType "hotupdate" }}selected{{ end }}>热更</option>
+        </select>
+      </form>
+    </div>
+
+    <div class="ol-scroll">
+      <table class="ol-table align-middle">
+        <thead><tr>
+          <th>工单号</th><th>类型</th><th>标题</th><th>状态</th><th>目标服务器</th><th>提交人</th><th>提交时间</th><th>计划执行</th><th>操作</th>
+        </tr></thead>
+        <tbody id="ol-rows">
+        {{ range $row := .Orders }}
+          <tr class="ol-row" data-text="{{ $row.WO.OrderNo }} {{ $row.WO.Title }} {{ $row.WO.CreateBy }} {{ $row.WO.TargetSummary }}">
+            <td><a href="/orders/{{ $row.WO.ID }}" class="ol-no">{{ $row.WO.OrderNo }}</a></td>
+            <td>{{ with typeBadge $row.WO.Type }}<span class="badge {{ .Class }}">{{ with .Icon }}<svg class="badge-ic"><use href="#{{ . }}"/></svg> {{ end }}{{ .Label }}</span>{{ end }}</td>
+            <td class="wo-title">{{ $row.WO.Title }}</td>
+            <td><span class="badge {{ statusClass $row.WO.Status }}">{{ statusCN $row.WO.Status }}</span></td>
+            <td class="wo-target">
+              {{ with targetBrief $row.WO.TargetSummary }}
+                {{ if .Fold }}
+                  <span class="text-nowrap">{{ .Preview }}…</span>
+                  <details class="d-inline">
+                    <summary class="ms-1"> (共 {{ .Count }})</summary>
+                    <div class="full small text-muted mt-1">{{ .Full }}</div>
+                  </details>
+                {{ else }}{{ .Full }}{{ end }}
+              {{ end }}
+            </td>
+            <td>{{ $row.WO.CreateBy }}</td>
+            <td class="text-nowrap">{{ $row.WO.CreateTime.Format "2006-01-02 15:04" }}</td>
+            <td class="text-nowrap">{{ if $row.WO.ScheduledTime }}{{ $row.WO.ScheduledTime.Format "2006-01-02 15:04" }}{{ else }}<span class="text-muted">立即/手动</span>{{ end }}</td>
+            <td>
+              <div class="wo-ops">
+                <a class="view" href="/orders/{{ $row.WO.ID }}">查看</a>
+                {{ range $row.Actions }}
+                {{ if eq .Action "approve" }}
+                <form method="post" action="/orders/{{ $row.WO.ID }}/act" class="ol-approve-form"
+                      data-order-id="{{ $row.WO.ID }}"{{ if $row.IsConfigOrder }} data-config="1"{{ end }}>
+                  <input type="hidden" name="action" value="approve">
+                  <button class="btn {{ outline .Class }} ol-approve-btn" type="button">审批</button>
+                  <div class="ol-approve-keyinfo d-none">
+                    <div class="oc-sum">
+                      <div class="oc-hd">
+                        <span class="oc-badge">{{ typeCN $row.WO.Type }}</span>
+                        <span class="oc-title">{{ $row.WO.OrderNo }} · {{ $row.WO.Title }}</span>
+                        {{ if $row.WO.ScheduledTime }}<span class="oc-when at">定时: {{ $row.WO.ScheduledTime.Format "2006-01-02 15:04" }}</span>{{ else }}<span class="oc-when">审批后立即执行</span>{{ end }}
+                      </div>
+                      <div class="oc-grp">
+                        <div class="oc-row"><span class="k">提交人</span><span class="v">{{ $row.WO.CreateBy }}</span></div>
+                        <div class="oc-row"><span class="k">提交时间</span><span class="v">{{ $row.WO.CreateTime.Format "2006-01-02 15:04" }}</span></div>
+                      </div>
+                      {{ if $row.Details }}
+                      <div class="oc-grp">
+                        <div class="oc-grp-t">关键参数</div>
+                        {{ range $row.Details }}
+                        <div class="oc-row">
+                          <span class="k">{{ .Label }}</span>
+                          <span class="v">{{ if eq .Highlight "yes" }}是{{ else if eq .Highlight "no" }}否{{ else if .Value }}{{ .Value }}{{ else }}—{{ end }}</span>
+                        </div>
+                        {{ if .Fold }}
+                        <div class="oc-row"><span class="k">完整服号</span><span class="v">{{ .Fold }}</span></div>
+                        {{ end }}
+                        {{ end }}
+                      </div>
+                      {{ else if $row.IsConfigOrder }}
+                      <div class="oc-grp cfg-keyinfo-slot"><span class="oc-hint">点「审批」加载变更摘要…</span></div>
+                      {{ else }}
+                      <div class="oc-grp"><span class="oc-hint">该工单暂无可解析参数，请进入详情页核对 JSON。</span></div>
+                      {{ end }}
+                    </div>
+                  </div>
+                </form>
+                {{ else if eq .Action "reject" }}
+                <form method="post" action="/orders/{{ $row.WO.ID }}/act" class="ol-reject-form d-none"
+                      data-order-id="{{ $row.WO.ID }}">
+                  <input type="hidden" name="action" value="reject">
+                </form>
+                {{ else }}
+                <form method="post" action="/orders/{{ $row.WO.ID }}/act" class="ol-act" data-confirm="确认{{ .Label }}?"{{ if or (eq .Class "btn-danger") (eq .Class "btn-warning") (eq .Action "cancel") }} data-danger="1"{{ end }}>
+                  {{/* action 走隐藏字段:确认弹窗用 form.submit() 脚本提交,不会携带 button 的 name/value */}}
+                  <input type="hidden" name="action" value="{{ .Action }}">
+                  {{ if eq .Action "cancel" }}<input type="hidden" name="redirect" value="/orders">{{ end }}
+                  <button class="btn {{ outline .Class }}" type="submit">{{ .Label }}</button>
+                </form>
+                {{ end }}
+                {{ end }}
+              </div>
+            </td>
+          </tr>
+        {{ else }}
+          <tr><td colspan="9" class="text-center text-muted py-4">{{ if .Empty }}{{ .Empty }}{{ else }}暂无工单{{ end }}</td></tr>
+        {{ end }}
+          <tr id="ol-noresult" style="display:none"><td colspan="9" class="text-center text-muted py-4">没有匹配的工单</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ol-footer">
+      <span class="spacer"></span>
+      <div class="ol-pager">
+        <span class="total">共计: <span id="ol-total">0</span></span>
+        <button id="ol-prev" title="上一页">&lsaquo;</button>
+        <span id="ol-pglist"></span>
+        <button id="ol-next" title="下一页">&rsaquo;</button>
+        <select id="ol-size">
+          <option value="10">10 条/页</option>
+          <option value="20" selected>20 条/页</option>
+          <option value="50">50 条/页</option>
+          <option value="100">100 条/页</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var rows = Array.prototype.slice.call(document.querySelectorAll('#ol-rows tr.ol-row'));
+  var qInput = document.getElementById('ol-q');
+  var noResult = document.getElementById('ol-noresult');
+  var page = 1, pageSize = 20, filtered = rows.slice();
+
+  function applyFilter(){
+    var kw = qInput.value.trim().toLowerCase();
+    filtered = rows.filter(function(tr){
+      return !kw || tr.getAttribute('data-text').toLowerCase().indexOf(kw) >= 0;
+    });
+    page = 1; renderPage();
+  }
+  function renderPage(){
+    var total = filtered.length;
+    var pages = Math.max(1, Math.ceil(total / pageSize));
+    if (page > pages) page = pages;
+    var start = (page - 1) * pageSize, end = start + pageSize;
+    var visible = filtered.slice(start, end);
+    rows.forEach(function(tr){ tr.style.display = visible.indexOf(tr) >= 0 ? '' : 'none'; });
+    if (noResult) noResult.style.display = (rows.length > 0 && total === 0) ? '' : 'none';
+    document.getElementById('ol-total').textContent = total;
+    renderPager(pages);
+  }
+  function renderPager(pages){
+    var list = document.getElementById('ol-pglist');
+    list.innerHTML = '';
+    function btn(n){ var b = document.createElement('button'); b.textContent = n; if (n===page) b.className='cur';
+      b.addEventListener('click', function(){ page=n; renderPage(); }); return b; }
+    var nums = [];
+    for (var i = 1; i <= pages; i++){
+      if (i===1 || i===pages || Math.abs(i-page)<=1) nums.push(i);
+      else if (nums[nums.length-1] !== '…') nums.push('…');
+    }
+    nums.forEach(function(n){
+      if (n==='…'){ var s=document.createElement('span'); s.textContent='…'; s.style.padding='0 .2rem'; list.appendChild(s); }
+      else list.appendChild(btn(n));
+    });
+    document.getElementById('ol-prev').disabled = (page<=1);
+    document.getElementById('ol-next').disabled = (page>=pages);
+  }
+  if (qInput) qInput.addEventListener('input', applyFilter);
+  document.getElementById('ol-prev').addEventListener('click', function(){ if(page>1){page--;renderPage();} });
+  document.getElementById('ol-next').addEventListener('click', function(){ page++; renderPage(); });
+  document.getElementById('ol-size').addEventListener('change', function(){ pageSize=parseInt(this.value,10)||20; page=1; renderPage(); });
+  function olEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c];}); }
+  function olIdsLine(arr){
+    if (!arr.length) return '—';
+    var show = arr.slice(0,20).join('、');
+    return arr.length>20 ? show+' … 等 '+arr.length+' 个' : show;
+  }
+  function olBuildDiffHtml(d){
+    var changed = d.changed||[], added = d.added||[], removed = d.removed||[];
+    var chKeys = {}; changed.forEach(function(c){ chKeys[c.key]=1; });
+    var chRows = Object.keys(chKeys);
+    var affected = chRows.concat(added, removed);
+    var h = '<div class="oc-grp"><div class="oc-grp-t">变更摘要</div>'
+      + '<div class="oc-row"><span class="k">修改</span><span class="v">'+chRows.length+' 行（'+changed.length+' 处单元格）</span></div>'
+      + '<div class="oc-row"><span class="k">新增</span><span class="v">'+added.length+' 行</span></div>'
+      + '<div class="oc-row"><span class="k">删除</span><span class="v">'+removed.length+' 行</span></div>'
+      + '<div class="oc-row"><span class="k">受影响服号</span><span class="v">'+olEsc(olIdsLine(affected))+'</span></div>'
+      + '</div>';
+    if (d.baselineStale) h += '<div class="oc-grp"><span class="oc-warn">⚠ 线上已变化、基准已过期，通过前请复核完整 diff</span></div>';
+    h += '<div class="oc-grp"><span class="oc-hint">完整 diff 见详情页只读表格</span></div>';
+    return h;
+  }
+  function olOpenApprove(f, id, info){
+    uiConfirm({
+      title: '审批工单',
+      wide: true,
+      html: info ? info.innerHTML : '',
+      buttons: [{ label: '通过', value: 'approve' }, { label: '驳回', value: 'reject', danger: true }],
+      cancelText: '取消'
+    }).then(function(v){
+      if (v === 'approve') { f.submit(); return; }
+      if (v === 'reject') {
+        var rf = document.querySelector('.ol-reject-form[data-order-id="' + id + '"]');
+        if (rf) rf.submit();
+      }
+    });
+  }
+  document.querySelectorAll('.ol-approve-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var f = btn.closest('.ol-approve-form');
+      if (!f) return;
+      var id = f.getAttribute('data-order-id');
+      var info = f.querySelector('.ol-approve-keyinfo');
+      if (f.getAttribute('data-config') === '1') {
+        var slot = info ? info.querySelector('.cfg-keyinfo-slot') : null;
+        if (slot) slot.innerHTML = '<span class="oc-hint">正在加载变更摘要…</span>';
+        btn.disabled = true;
+        fetch('/orders/' + id + '/config').then(function(r){ return r.json(); }).then(function(d){
+          btn.disabled = false;
+          if (slot) slot.innerHTML = (d && d.error) ? '<span class="oc-warn">拉取变更失败：'+olEsc(d.error)+'</span>' : olBuildDiffHtml(d);
+          olOpenApprove(f, id, info);
+        }).catch(function(e){
+          btn.disabled = false;
+          if (slot) slot.innerHTML = '<span class="oc-warn">拉取变更失败：'+olEsc(e.message)+'，请进详情页核对</span>';
+          olOpenApprove(f, id, info);
+        });
+        return;
+      }
+      olOpenApprove(f, id, info);
+    });
+  });
+
+  applyFilter();
+})();
+</script>
+{{ template "foot" . }}
