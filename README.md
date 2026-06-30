@@ -52,9 +52,12 @@ scripts/             部署侧脚本（合服 / 拉配置）
 ## 本地运行
 
 ```bash
-cp config.example.yaml config.yaml   # 按需修改；本地建议 executor.mode: mock
-go run .                              # 默认 http://localhost:8080
+cp config.example.yaml config.yaml          # 按需修改；本地建议 executor.mode: mock
+cp examples/ServerConfigList.txt ./          # 示例服列表（测试数据，GBK 编码自动识别）
+go run .                                     # 默认 http://localhost:8080
 ```
+
+> `examples/ServerConfigList.txt` 为示例测试数据（私网/本地 IP、占位密码），可作为 `executor.server_config_file` 指向的文件，便于本地以 mock 模式体验。
 
 ---
 
