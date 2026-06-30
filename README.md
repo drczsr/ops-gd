@@ -59,6 +59,11 @@ go run .                                     # 默认 http://localhost:8080
 
 > `examples/ServerConfigList.txt` 为示例测试数据（私网/本地 IP、占位密码），可作为 `executor.server_config_file` 指向的文件，便于本地以 mock 模式体验。
 
+## Demo 地址
+
+- 在线体验：http://20.43.184.218:18080/
+- 作品介绍页：https://drczsr.github.io/ops-gd/
+
 ---
 
 ## ⚠️ 关于本仓库
