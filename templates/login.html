@@ -54,11 +54,11 @@
   <form method="post" action="/login">
     <div class="mb-3">
       <label class="form-label">用户名</label>
-      <input class="form-control" name="username" placeholder="用户名" autofocus>
+      <input class="form-control" name="username" placeholder="用户名" value="{{ .PrefillUsername }}" autofocus>
     </div>
     <div class="mb-3">
       <label class="form-label">密码</label>
-      <input class="form-control" type="password" name="password" placeholder="请输入密码">
+      <input class="form-control" type="password" name="password" placeholder="请输入密码" value="{{ .PrefillPassword }}">
     </div>
     <button class="btn btn-primary btn-login">登 录</button>
   </form>

@@ -2,6 +2,9 @@ package handler
 
 import (
 	"net/http"
+	"os"
+	"strconv"
+	"strings"
 
 	"gongdan/internal/service/auth"
 
@@ -10,10 +13,7 @@ import (
 )
 
 func (h *Handler) LoginPage(c *gin.Context) {
-	c.HTML(http.StatusOK, "login.html", gin.H{
-		"PasswordEnabled": h.cfg.Auth.PasswordEnabled,
-		"WeworkEnabled":   h.cfg.Auth.WeworkEnabled,
-	})
+	c.HTML(http.StatusOK, "login.html", h.loginViewData("", "", ""))
 }
 
 func (h *Handler) LoginSubmit(c *gin.Context) {
@@ -22,11 +22,7 @@ func (h *Handler) LoginSubmit(c *gin.Context) {
 
 	user, err := auth.Verify(h.db, username, password)
 	if err != nil {
-		c.HTML(http.StatusOK, "login.html", gin.H{
-			"PasswordEnabled": h.cfg.Auth.PasswordEnabled,
-			"WeworkEnabled":   h.cfg.Auth.WeworkEnabled,
-			"Error":           err.Error(),
-		})
+		c.HTML(http.StatusOK, "login.html", h.loginViewData(username, password, err.Error()))
 		return
 	}
 
@@ -35,6 +31,47 @@ func (h *Handler) LoginSubmit(c *gin.Context) {
 	s.Set("display", user.DisplayName)
 	_ = s.Save()
 	c.Redirect(http.StatusFound, "/orders")
+}
+
+func (h *Handler) loginViewData(username, password, errMsg string) gin.H {
+	u, p := loginPrefill()
+	if strings.TrimSpace(username) != "" {
+		u = username
+	}
+	if strings.TrimSpace(password) != "" {
+		p = password
+	}
+	return gin.H{
+		"PasswordEnabled": h.cfg.Auth.PasswordEnabled,
+		"WeworkEnabled":   h.cfg.Auth.WeworkEnabled,
+		"Error":           errMsg,
+		"PrefillUsername": u,
+		"PrefillPassword": p,
+	}
+}
+
+func loginPrefill() (username, password string) {
+	if !demoAutofillEnabled() {
+		return "", ""
+	}
+	username = strings.TrimSpace(os.Getenv("DEMO_LOGIN_USERNAME"))
+	password = strings.TrimSpace(os.Getenv("DEMO_LOGIN_PASSWORD"))
+	if username == "" {
+		username = "admin"
+	}
+	if password == "" {
+		password = "admin123"
+	}
+	return username, password
+}
+
+func demoAutofillEnabled() bool {
+	raw := strings.TrimSpace(os.Getenv("DEMO_AUTO_FILL_LOGIN"))
+	if raw == "" {
+		return false
+	}
+	ok, err := strconv.ParseBool(raw)
+	return err == nil && ok
 }
 
 func (h *Handler) Logout(c *gin.Context) {

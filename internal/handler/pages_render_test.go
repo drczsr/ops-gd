@@ -30,6 +30,27 @@ func TestLoginPageRenders(t *testing.T) {
 	}
 }
 
+func TestLoginPageDemoAutofill(t *testing.T) {
+	t.Setenv("DEMO_AUTO_FILL_LOGIN", "true")
+	t.Setenv("DEMO_LOGIN_USERNAME", "admin")
+	t.Setenv("DEMO_LOGIN_PASSWORD", "admin123")
+
+	r, _, _ := setupGSServer(t)
+	req := httptest.NewRequest("GET", "/login", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("/login status=%d, want 200", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, `name="username" placeholder="用户名" value="admin"`) {
+		t.Fatalf("demo 模式应预填用户名, body=%s", body)
+	}
+	if !strings.Contains(body, `name="password" placeholder="请输入密码" value="admin123"`) {
+		t.Fatalf("demo 模式应预填密码, body=%s", body)
+	}
+}
+
 func TestMemberPageRenders(t *testing.T) {
 	r, _, _ := setupGSServer(t)
 	ck := loginCookie(t, r, "admin", "admin123")
